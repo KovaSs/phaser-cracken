@@ -12,6 +12,10 @@ npm install
 npm run build
 ```
 
+## Download
+
+[Phaser Editor](https://disk.yandex.ru/d/Sg-X7tJoocnbpg)
+
 Or install globally:
 
 ```bash
@@ -33,21 +37,22 @@ phaser-cracken auto
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `patch` | Patch `WindowManager.js` — bypass `isEditorActivated()` |
-| `restore` | Restore the original `WindowManager.js` from backup |
-| `status` | Show patch status and session file info |
-| `backup-session` | Backup `user-session-v3.bin` to `./phaser_backup/` |
-| `restore-session [file]` | Restore session from backup |
-| `run` | Launch Phaser Editor |
-| `auto` | Patch + run in one step |
+| Command                  | Description                                             |
+| ------------------------ | ------------------------------------------------------- |
+| `patch`                  | Patch `WindowManager.js` — bypass `isEditorActivated()` |
+| `restore`                | Restore the original `WindowManager.js` from backup     |
+| `status`                 | Show patch status and session file info                 |
+| `backup-session`         | Backup `user-session-v3.bin` to `./phaser_backup/`      |
+| `restore-session [file]` | Restore session from backup                             |
+| `run`                    | Launch Phaser Editor                                    |
+| `auto`                   | Patch + run in one step                                 |
 
 ## How It Works
 
 Phaser Editor 5 checks the license via a method `isEditorActivated()` in `WindowManager.js`. This method spawns the core server binary with `-tool print-user-status` and checks `subscriptionActive`.
 
 **PhaserCracken** replaces:
+
 ```javascript
 isEditorActivated() {
     // ... checks userInfo.user.subscriptionActive ...
@@ -56,6 +61,7 @@ isEditorActivated() {
 ```
 
 With:
+
 ```javascript
 isEditorActivated() {
     return true;

@@ -1,0 +1,113 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.vscode
+/.idea
+.project
+.claude/
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/**/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+/legacy-apps
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.nx/cache
+.nx/workspace-data
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# Playwright auth state
+**/e2e/.auth/
+
+# ====================
+# TypeScript Build
+# ====================
+*.tsbuildinfo
+libs/*/dist/
+
+# tsc -b artifacts (generated next to composite tsconfig sources)
+vite.shared.js
+vite.shared.d.ts
+**/vite.config.js
+**/vite.config.d.ts
+**/vitest.config.js
+**/vitest.config.d.ts
+
+# ====================
+# E2E Testing
+# ====================
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress/.cache/
+
+# Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+test-output/
+
+# ====================
+# Nx
+# ====================
+.nx/
+nx-cloud.env
+
+# ====================
+# Vite
+# ====================
+*.timestamp-*
+
+# ====================
+# Local env files for app E2E (credentials, per-developer overrides)
+# ====================
+apps/*/.env.local
+apps/*/.env.*.local
+
+# ====================
+# Legacy ESLint (backup)
+# ====================
+.eslintrc.cjs.backup
+.eslintignore.backup
+
+# ====================
+# Generated reports
+# ====================
+reports/
+
+.roo
+
