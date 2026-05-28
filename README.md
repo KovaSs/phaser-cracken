@@ -1,4 +1,4 @@
-# PhaserCracken
+# ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 Phaser Editor 5 license bypass utility for non-commercial use.
 
@@ -7,7 +7,7 @@ Two layers of protection are bypassed:
 1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
 2. **Go binary check** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
 
-## Phaser Editor
+## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
 ### 5.0.2 desktop
 
