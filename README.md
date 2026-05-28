@@ -22,10 +22,33 @@ Two layers of protection are bypassed:
 [macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos.zip)
 [macOS (Apple Silicon)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos_arm.zip)
 
+## Setup Instructions
+
+Follow these steps carefully to avoid issues:
+
+1. **Download and install Phaser Editor 5**  
+   Choose the appropriate version for your platform from the links above.
+
+2. **Launch the editor once before patching**
+   - Open Phaser Editor normally.
+   - **Accept the EULA** (End User License Agreement) when prompted.
+   - Close the editor completely after the EULA is accepted.
+     > ⚠️ **Important:** Patching without having accepted the EULA first will break the editor (it will fail to open). This is because the EULA flag file (`~/.phasereditor2d/eula-accepted`) must exist before the modified code runs.
+
+3. **Run the patcher**
+
+   ```bash
+   npm run phaser-cracken --auto
+   ```
+
+   This will apply all necessary patches and launch the editor.
+
+4. **Enjoy** – After the first successful launch, the editor will no longer ask for a license or subscription. All features become available offline.
+
 ## Installation
 
 ```bash
-cd PhaserCracken
+cd phaser-cracken
 npm install
 npm run build
 ```
@@ -40,12 +63,12 @@ npm install -g .
 
 ```bash
 # One command to do everything:
-phaser-cracken auto
+npm run phaser-cracken --auto
 
 # Or step by step:
-phaser-cracken patch            # Bypass JS check
-phaser-cracken install-proxy    # Bypass Go binary check
-phaser-cracken run              # Launch the editor
+npm run phaser-cracken --patch            # Bypass JS check
+npm run phaser-cracken --install-proxy    # Bypass Go binary check
+npm run phaser-cracken --run              # Launch the editor
 ```
 
 ## How It Works
@@ -120,8 +143,8 @@ phaser-cracken auto --no-run    # Skip launching after setup
 ## Uninstallation
 
 ```bash
-phaser-cracken restore          # Restore WindowManager.js
-phaser-cracken uninstall-proxy  # Restore PhaserEditor binary
+npm run phaser-cracken --restore          # Restore WindowManager.js
+npm run phaser-cracken --uninstall-proxy  # Restore PhaserEditor binary
 ```
 
 ## Requirements
