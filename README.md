@@ -2,7 +2,25 @@
 
 Phaser Editor 5 license bypass utility for non-commercial use.
 
-Patches `WindowManager.js` to skip the subscription check (`isEditorActivated()` always returns `true`), and provides session file backup/restore for offline use.
+Two layers of protection are bypassed:
+
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary check** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+
+## Phaser Editor
+
+### 5.0.2 desktop
+
+[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-5.0.2-Setup.exe)
+[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-macos.dmg)
+[macOS (Apple Silicon)](https://disk.yandex.ru/d/GYCs4Yy47L2gYA)
+[Linux](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-linux.zip)
+
+### 5.0.2 core
+
+[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-windows.zip)
+[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos.zip)
+[macOS (Apple Silicon)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos_arm.zip)
 
 ## Installation
 
@@ -12,11 +30,7 @@ npm install
 npm run build
 ```
 
-## Download
-
-[Phaser Editor](https://disk.yandex.ru/d/Sg-X7tJoocnbpg)
-
-Or install globally:
+Or globally:
 
 ```bash
 npm install -g .
@@ -25,56 +39,90 @@ npm install -g .
 ## Quick Start
 
 ```bash
-# 1. Apply the license bypass patch
-phaser-cracken patch
-
-# 2. Launch the editor
-phaser-cracken run
-
-# Or do both at once:
+# One command to do everything:
 phaser-cracken auto
+
+# Or step by step:
+phaser-cracken patch            # Bypass JS check
+phaser-cracken install-proxy    # Bypass Go binary check
+phaser-cracken run              # Launch the editor
+```
+
+## How It Works
+
+### Layer 1: Electron Shell
+
+Replaces `isEditorActivated()` in `WindowManager.js`:
+
+```diff
+- isEditorActivated() {
+-     const userInfo = this.getUserInfo();
+-     return Boolean(userInfo.user && userInfo.user.subscriptionActive);
+- }
++ isEditorActivated() {
++     return true;
++ }
+```
+
+### Layer 2: Go Binary Proxy
+
+Creates a proxy script (Node.js or bash) around the `PhaserEditor` binary:
+
+- `-tool print-user-status` → returns fake JSON with `subscriptionActive: true`
+- Everything else → transparently delegates to `PhaserEditor.real`
+
+```bash
+#!/bin/bash
+# Intercepts print-user-status, delegates everything else
+if [ "$1" = "-tool" ] && [ "$2" = "print-user-status" ]; then
+  echo '{"user":{"subscriptionActive":true,"permissions":{"product:editor:desktop":true}}}'
+  exit 0
+fi
+exec "$0.real" "$@"
 ```
 
 ## Commands
 
-| Command                  | Description                                             |
-| ------------------------ | ------------------------------------------------------- |
-| `patch`                  | Patch `WindowManager.js` — bypass `isEditorActivated()` |
-| `restore`                | Restore the original `WindowManager.js` from backup     |
-| `status`                 | Show patch status and session file info                 |
-| `backup-session`         | Backup `user-session-v3.bin` to `./phaser_backup/`      |
-| `restore-session [file]` | Restore session from backup                             |
-| `run`                    | Launch Phaser Editor                                    |
-| `auto`                   | Patch + run in one step                                 |
+| Command                  | Description                                        |
+| ------------------------ | -------------------------------------------------- |
+| `patch`                  | Patch `WindowManager.js`                           |
+| `restore`                | Restore original `WindowManager.js`                |
+| `install-proxy`          | Install proxy wrapper around `PhaserEditor` binary |
+| `uninstall-proxy`        | Remove proxy, restore original binary              |
+| `status`                 | Show patch, proxy and session status               |
+| `run`                    | Launch Phaser Editor                               |
+| `auto`                   | Complete setup: patch + proxy + run                |
+| `backup-session`         | Backup `user-session-v3.bin`                       |
+| `restore-session [file]` | Restore session from backup                        |
+| `refresh-session`        | Run Phaser.io login to get a new session           |
 
-## How It Works
+### Auto options
 
-Phaser Editor 5 checks the license via a method `isEditorActivated()` in `WindowManager.js`. This method spawns the core server binary with `-tool print-user-status` and checks `subscriptionActive`.
-
-**PhaserCracken** replaces:
-
-```javascript
-isEditorActivated() {
-    // ... checks userInfo.user.subscriptionActive ...
-    return Boolean(userInfo.user && userInfo.user.subscriptionActive);
-}
+```bash
+phaser-cracken auto --no-run    # Skip launching after setup
 ```
-
-With:
-
-```javascript
-isEditorActivated() {
-    return true;
-}
-```
-
-The session file (`~/.phasereditor2d/user-session-v3.bin`) is still required for the core server to start. Use `backup-session` / `restore-session` to manage it.
 
 ## Supported Platforms
 
-- **macOS**: `/Applications/Phaser Editor 5.app`
-- **Windows**: `C:\Program Files\Phaser Editor 5\`
-- **Linux**: `/opt/phaser-editor/`
+- **macOS**: `/Applications/Phaser Editor.app`
+- **Windows**: `C:\Program Files\Phaser Editor\resources\app`
+- **Linux**: `/opt/phaser-editor/resources/app`
+
+## Files Created by PhaserCracken
+
+| File                      | Purpose                            |
+| ------------------------- | ---------------------------------- |
+| `WindowManager.js.backup` | Original JS file backup            |
+| `PhaserEditor.real`       | Original Go binary (renamed)       |
+| `PhaserEditor.backup`     | Copy of original binary (optional) |
+| `PhaserEditor`            | Proxy script (replaces original)   |
+
+## Uninstallation
+
+```bash
+phaser-cracken restore          # Restore WindowManager.js
+phaser-cracken uninstall-proxy  # Restore PhaserEditor binary
+```
 
 ## Requirements
 
@@ -83,4 +131,5 @@ The session file (`~/.phasereditor2d/user-session-v3.bin`) is still required for
 
 ## Disclaimer
 
-This tool is for educational purposes and non-commercial use only. You should purchase a valid license from [phaser.io](https://phaser.io) if you use Phaser Editor commercially.
+This tool is for educational purposes and non-commercial use only.  
+You should purchase a valid license from [phaser.io](https://phaser.io) if you use Phaser Editor commercially.
