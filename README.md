@@ -1,6 +1,8 @@
-# ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
+# ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟 
 
-Phaser Editor 5 license bypass utility for non-commercial use.
+[🇷🇺 README](docs/RU_README.md)
+
+ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 license bypass utility for non-commercial use.
 
 Two layers of protection are bypassed:
 
@@ -11,16 +13,16 @@ Two layers of protection are bypassed:
 
 ### 5.0.2 desktop
 
-[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-5.0.2-Setup.exe)
-[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-macos.dmg)
-[macOS (Apple Silicon)](https://disk.yandex.ru/d/GYCs4Yy47L2gYA)
-[Linux](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-linux.zip)
+[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-5.0.2-Setup.exe) <br>
+[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-macos.dmg) <br>
+[macOS (Apple Silicon)](https://disk.yandex.ru/d/GYCs4Yy47L2gYA) <br>
+[Linux](https://cdn.phaser.io/downloads/editor/PhaserEditor-desktop-5.0.2-linux.zip) <br>
 
 ### 5.0.2 core
 
-[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-windows.zip)
-[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos.zip)
-[macOS (Apple Silicon)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos_arm.zip)
+[Windows](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-windows.zip) <br>
+[macOS (Intel)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos.zip) <br>
+[macOS (Apple Silicon)](https://cdn.phaser.io/downloads/editor/PhaserEditor-core-5.0.2-macos_arm.zip) <br>
 
 ## Setup Instructions
 
@@ -41,7 +43,7 @@ Follow these steps carefully to avoid issues:
    npm run phaser-cracken --auto
    ```
 
-   This will apply all necessary patches and launch the editor.
+This will apply all necessary patches and launch the editor.
 
 4. **Enjoy** – After the first successful launch, the editor will no longer ask for a license or subscription. All features become available offline.
 
@@ -154,5 +156,5 @@ npm run phaser-cracken --uninstall-proxy  # Restore PhaserEditor binary
 
 ## Disclaimer
 
-This tool is for educational purposes and non-commercial use only.  
+This tool is for educational purposes and non-commercial use only.
 You should purchase a valid license from [phaser.io](https://phaser.io) if you use Phaser Editor commercially.
