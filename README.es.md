@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 Utilidad de omisión de licencia 5 para uso no comercial.
 
-Se omiten tres capas de protección:
+Se omiten cuatro capas de protección:
 
 1. **Verificación Electron JS** — parchea `WindowManager.js` para que `isEditorActivated()` siempre devuelva `true`.
 2. **Verificación binaria Go (estado del usuario)** — instala un proxy transparente alrededor de `PhaserEditor` que intercepta `-tool print-user-status` y devuelve una respuesta de suscripción falsa. Todos los demás comandos se delegan al binario real.
-3. **Verificación binaria Go (inicio del servidor)** — el binario Go almacena la marca de tiempo de error de autenticación en `server.log`. Cuando el período de gracia de 96 horas expira, se niega a iniciar. El proxy ahora trunca `server.log` y `auth-failure-v1.log` en cada invocación, otorgando un nuevo período de gracia cada vez que se lanza el editor.
+3. **Verificación binaria Go (inicio del servidor — período de gracia)** — el binario Go almacena la marca de tiempo de error de autenticación en `server.log`. Cuando el período de gracia de 96 horas expira, se niega a iniciar. El proxy ahora trunca `server.log` y `auth-failure-v1.log` en cada invocación, otorgando un nuevo período de gracia cada vez que se lanza el editor.
+4. **Verificación binaria Go (inicio del servidor — validación HTTP)** — el binario Go realiza una solicitud HTTP directa a `https://phaser.io/api/user/?has=product:editor:desktop`. Si el servidor responde con "sin permiso", el binario bloquea inmediatamente (sin modo de gracia). El proxy establece `HTTPS_PROXY` en una dirección no válida, forzando que la solicitud HTTP falle y recurra al modo de gracia.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Crea un script proxy (Node.js o bash) alrededor del binario `PhaserEditor`:
 
 ```bash
 #!/bin/bash
-# Reinicia el período de gracia, intercepta print-user-status, delega todo lo demás
+# Reinicia el período de gracia, bloquea la validación de phaser.io,
+# intercepta print-user-status, delega todo lo demás
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Forzar modo de gracia
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

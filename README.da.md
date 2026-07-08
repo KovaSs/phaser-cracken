@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 licensomgåelsesværktøj til ikke-kommerciel brug.
 
-Tre beskyttelseslag omgås:
+Fire beskyttelseslag omgås:
 
 1. **Electron JS-tjek** — patcher `WindowManager.js`, så `isEditorActivated()` altid returnerer `true`.
 2. **Go binærtjek (brugerstatus)** — installerer en透明 proxy omkring `PhaserEditor`, der opsnapper `-tool print-user-status` og returnerer et falskt abonnementssvar. Alle andre kommandoer sendes videre til den rigtige binære fil.
-3. **Go binærtjek (serverstart)** — den binære Go-fil gemmer tidsstemplet for godkendelsesfejl i `server.log`. Når nådeperioden på 96 timer udløber, nægter den at starte. Proxyen afkorter nu `server.log` og `auth-failure-v1.log` ved hver kørsel, hvilket giver en ny nådeperiode hver gang editoren startes.
+3. **Go binærtjek (serverstart — nådeperiode)** — den binære Go-fil gemmer tidsstemplet for godkendelsesfejl i `server.log`. Når nådeperioden på 96 timer udløber, nægter den at starte. Proxyen afkorter nu `server.log` og `auth-failure-v1.log` ved hver kørsel, hvilket giver en ny nådeperiode hver gang editoren startes.
+4. **Go binærtjek (serverstart — HTTP-validering)** — den binære Go-fil foretager en direkte HTTP-anmodning til `https://phaser.io/api/user/?has=product:editor:desktop`. Hvis serveren svarer med "ingen tilladelse", blokerer den binære fil straks (ingen nådetilstand). Proxyen sætter `HTTPS_PROXY` til en ugyldig adresse, hvilket tvinger HTTP-anmodningen til at mislykkes og falde tilbage til nådetilstand.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Opretter et proxyscript (Node.js eller bash) omkring `PhaserEditor`-binæren:
 
 ```bash
 #!/bin/bash
-# Nulstiller nådeperiode, opsnapper print-user-status, sender alt andet videre
+# Nulstiller nådeperiode, blokerer phaser.io-validering,
+# opsnapper print-user-status, sender alt andet videre
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Tvinger nådetilstand
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

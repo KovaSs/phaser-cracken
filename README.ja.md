@@ -29,11 +29,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 ライセンス回避ユーティリティ（非商用利用のみ）。
 
-3 つの保護レイヤーをバイパスします：
+4 つの保護レイヤーをバイパスします：
 
 1. **Electron JS チェック** — `WindowManager.js` にパッチを適用し、`isEditorActivated()` が常に `true` を返すようにします。
 2. **Go バイナリチェック（ユーザーステータス）** — `PhaserEditor` の周囲に透過プロキシをインストールし、`-tool print-user-status` をインターセプトして偽のサブスクリプション応答を返します。その他のコマンドはすべて実際のバイナリに透過的に委譲されます。
-3. **Go バイナリチェック（サーバー起動）** — Go バイナリは認証失敗のタイムスタンプを `server.log` に保存します。96 時間の猶予期間が経過すると、起動を拒否します。プロキシは呼び出しのたびに `server.log` と `auth-failure-v1.log` を切り詰め、エディタを起動するたびに新しい猶予期間を提供します。
+3. **Go バイナリチェック（サーバー起動 — 猶予期間）** — Go バイナリは認証失敗のタイムスタンプを `server.log` に保存します。96 時間の猶予期間が経過すると、起動を拒否します。プロキシは呼び出しのたびに `server.log` と `auth-failure-v1.log` を切り詰め、エディタを起動するたびに新しい猶予期間を提供します。
+4. **Go バイナリチェック（サーバー起動 — HTTP 検証）** — Go バイナリは `https://phaser.io/api/user/?has=product:editor:desktop` に直接 HTTP リクエストを送信します。サーバーが「権限なし」と応答した場合、バイナリは即座にブロックします（猶予モードなし）。プロキシは `HTTPS_PROXY` を無効なアドレスに設定し、HTTP リクエストを強制的に失敗させて猶予モードにフォールバックさせます。
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -125,9 +126,11 @@ npm run phaser-cracken --run              # エディタを起動
 
 ```bash
 #!/bin/bash
-# 猶予期間をリセットし、print-user-status をインターセプトし、それ以外を委譲
+# 猶予期間をリセットし、phaser.io 検証をブロックし、
+# print-user-status をインターセプトし、それ以外を委譲
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # 猶予モードを強制
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

@@ -27,11 +27,12 @@
 
 Công cụ vượt giấy phép ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 dành cho mục đích phi thương mại.
 
-Ba lớp bảo vệ bị vượt qua:
+Bốn lớp bảo vệ bị vượt qua:
 
 1. **Kiểm tra Electron JS** — vá `WindowManager.js` để `isEditorActivated()` luôn trả về `true`.
 2. **Kiểm tra nhị phân Go (trạng thái người dùng)** — cài đặt một proxy trong suốt quanh `PhaserEditor` để chặn `-tool print-user-status` và trả về phản hồi đăng ký giả. Tất cả các lệnh khác được chuyển tiếp đến tệp nhị phân thật.
-3. **Kiểm tra nhị phân Go (khởi động máy chủ)** — tệp nhị phân Go lưu dấu thời gian xác thực thất bại trong `server.log`. Khi thời gian gia hạn 96 giờ hết hạn, nó từ chối khởi động. Proxy hiện cắt ngắn `server.log` và `auth-failure-v1.log` mỗi lần gọi, cung cấp thời gian gia hạn mới mỗi khi trình chỉnh sửa được khởi chạy.
+3. **Kiểm tra nhị phân Go (khởi động máy chủ — thời gian gia hạn)** — tệp nhị phân Go lưu dấu thời gian xác thực thất bại trong `server.log`. Khi thời gian gia hạn 96 giờ hết hạn, nó từ chối khởi động. Proxy hiện cắt ngắn `server.log` và `auth-failure-v1.log` mỗi lần gọi, cung cấp thời gian gia hạn mới mỗi khi trình chỉnh sửa được khởi chạy.
+4. **Kiểm tra nhị phân Go (khởi động máy chủ — xác thực HTTP)** — tệp nhị phân Go thực hiện yêu cầu HTTP trực tiếp đến `https://phaser.io/api/user/?has=product:editor:desktop`. Nếu máy chủ phản hồi "không có quyền", tệp nhị phân chặn ngay lập tức (không có chế độ gia hạn). Proxy đặt `HTTPS_PROXY` thành địa chỉ không hợp lệ, buộc yêu cầu HTTP thất bại và quay lại chế độ gia hạn.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Tạo một tập lệnh proxy (Node.js hoặc bash) quanh tệp nhị phân `Ph
 
 ```bash
 #!/bin/bash
-# Đặt lại thời gian gia hạn, chặn print-user-status, ủy quyền mọi thứ khác
+# Đặt lại thời gian gia hạn, chặn xác thực phaser.io,
+# chặn print-user-status, ủy quyền mọi thứ khác
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Buộc chế độ gia hạn
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

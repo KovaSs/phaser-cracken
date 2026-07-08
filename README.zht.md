@@ -29,11 +29,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 許可證繞過工具，僅供非商業用途使用。
 
-繞過三層保護：
+繞過四層保護：
 
 1. **Electron JS 檢查** — 修補 `WindowManager.js`，使 `isEditorActivated()` 始終返回 `true`。
 2. **Go 二進位檔案檢查（使用者狀態）** — 在 `PhaserEditor` 周圍安裝透明代理，攔截 `-tool print-user-status` 並回傳虛假的訂閱回應。所有其他命令透明地傳遞到真實的二進位檔案。
-3. **Go 二進位檔案檢查（伺服器啟動）** — Go 二進位檔案將認證失敗時間戳儲存在 `server.log` 中。當 96 小時寬限期到期後，它將拒絕啟動。代理現在在每次呼叫時截斷 `server.log` 和 `auth-failure-v1.log`，每次編輯器啟動時都會獲得一個新的寬限期。
+3. **Go 二進位檔案檢查（伺服器啟動 — 寬限期）** — Go 二進位檔案將認證失敗時間戳儲存在 `server.log` 中。當 96 小時寬限期到期後，它將拒絕啟動。代理現在在每次呼叫時截斷 `server.log` 和 `auth-failure-v1.log`，每次編輯器啟動時都會獲得一個新的寬限期。
+4. **Go 二進位檔案檢查（伺服器啟動 — HTTP 驗證）** — Go 二進位檔案直接向 `https://phaser.io/api/user/?has=product:editor:desktop` 發送 HTTP 請求。如果伺服器回覆"無權限"，則該二進位檔案立即阻止（無寬限模式）。代理將 `HTTPS_PROXY` 設定為無效地址，強制 HTTP 請求失敗並回退到寬限模式。
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -125,9 +126,11 @@ npm run phaser-cracken --run              # 啟動編輯器
 
 ```bash
 #!/bin/bash
-# 重置寬限期，攔截 print-user-status，委託其他所有內容
+# 重置寬限期，阻止 phaser.io 驗證，
+# 攔截 print-user-status，委託其他所有內容
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # 強制寬限模式
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

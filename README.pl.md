@@ -27,11 +27,12 @@
 
 Narzędzie do ominięcia licencji ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 do użytku niekomercyjnego.
 
-Omijane są trzy warstwy ochrony:
+Omijane są cztery warstwy ochrony:
 
 1. **Sprawdzanie Electron JS** — łatkuje `WindowManager.js`, aby `isEditorActivated()` zawsze zwracało `true`.
 2. **Sprawdzanie binarne Go (status użytkownika)** — instaluje przezroczyste proxy wokół `PhaserEditor`, które przechwytuje `-tool print-user-status` i zwraca fałszywą odpowiedź subskrypcji. Wszystkie inne polecenia są przekazywane do rzeczywistego pliku binarnego.
-3. **Sprawdzanie binarne Go (uruchamianie serwera)** — plik binarny Go przechowuje znacznik czasu nieudanego uwierzytelnienia w `server.log`. Po upływie 96-godzinnego okresu karencji odmawia uruchomienia. Proxy teraz czyści `server.log` i `auth-failure-v1.log` przy każdym wywołaniu, dając świeży okres karencji za każdym razem, gdy edytor jest uruchamiany.
+3. **Sprawdzanie binarne Go (uruchamianie serwera — okres karencji)** — plik binarny Go przechowuje znacznik czasu nieudanego uwierzytelnienia w `server.log`. Po upływie 96-godzinnego okresu karencji odmawia uruchomienia. Proxy teraz czyści `server.log` i `auth-failure-v1.log` przy każdym wywołaniu, dając świeży okres karencji za każdym razem, gdy edytor jest uruchamiany.
+4. **Sprawdzanie binarne Go (uruchamianie serwera — walidacja HTTP)** — plik binarny Go wykonuje bezpośrednie żądanie HTTP do `https://phaser.io/api/user/?has=product:editor:desktop`. Jeśli serwer odpowie "brak uprawnień", plik binarny blokuje natychmiast (bez trybu karencji). Proxy ustawia `HTTPS_PROXY` na nieprawidłowy adres, zmuszając żądanie HTTP do niepowodzenia i powrotu do trybu karencji.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Tworzy skrypt proxy (Node.js lub bash) wokół pliku binarnego `PhaserEditor`:
 
 ```bash
 #!/bin/bash
-# Resetuje okres karencji, przechwytuje print-user-status, przekazuje wszystko inne
+# Resetuje okres karencji, blokuje walidację phaser.io,
+# przechwytuje print-user-status, przekazuje wszystko inne
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Wymusza tryb karencji
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

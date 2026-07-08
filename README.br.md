@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 — utilitário de bypass de licença para uso não comercial.
 
-Três camadas de proteção são contornadas:
+Quatro camadas de proteção são contornadas:
 
 1. **Verificação Electron JS** — modifica o `WindowManager.js` para que `isEditorActivated()` sempre retorne `true`.
 2. **Verificação do binário Go (status do usuário)** — instala um proxy transparente em torno do `PhaserEditor` que intercepta `-tool print-user-status` e retorna uma resposta falsa de assinatura. Todos os outros comandos são delegados transparentemente ao binário real.
-3. **Verificação do binário Go (inicialização do servidor)** — o binário Go armazena o timestamp de falha de autenticação no `server.log`. Quando o período de carência de 96 horas expira, ele se recusa a iniciar. O proxy agora limpa o `server.log` e o `auth-failure-v1.log` a cada execução, garantindo um novo período de carência toda vez que o editor é iniciado.
+3. **Verificação do binário Go (inicialização do servidor — período de carência)** — o binário Go armazena o timestamp de falha de autenticação no `server.log`. Quando o período de carência de 96 horas expira, ele se recusa a iniciar. O proxy agora limpa o `server.log` e o `auth-failure-v1.log` a cada execução, garantindo um novo período de carência toda vez que o editor é iniciado.
+4. **Verificação do binário Go (inicialização do servidor — validação HTTP)** — o binário Go faz uma requisição HTTP direta para `https://phaser.io/api/user/?has=product:editor:desktop`. Se o servidor responder com "sem permissão", o binário bloqueia imediatamente (sem modo de carência). O proxy define `HTTPS_PROXY` como um endereço inválido, forçando a requisição HTTP a falhar e recuar para o modo de carência.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Cria um script proxy (Node.js ou bash) em torno do binário `PhaserEditor`:
 
 ```bash
 #!/bin/bash
-# Redefine o período de carência, intercepta print-user-status, delega todo o resto
+# Redefine o período de carência, bloqueia a validação phaser.io,
+# intercepta print-user-status, delega todo o resto
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Força modo de carência
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 lisans atlatma aracı — yalnızca ticari olmayan kullanım için.
 
-Üç koruma katmanı atlatılır:
+Dört koruma katmanı atlatılır:
 
 1. **Electron JS denetimi** — `WindowManager.js` dosyasını yamalayarak `isEditorActivated()` fonksiyonunun her zaman `true` döndürmesini sağlar.
 2. **Go ikili denetimi (kullanıcı durumu)** — `PhaserEditor` etrafında `-tool print-user-status` komutunu yakalayan ve sahte bir abonelik yanıtı döndüren şeffaf bir proxy kurar. Diğer tüm komutlar gerçek ikili dosyaya iletilir.
-3. **Go ikili denetimi (sunucu başlatma)** — Go ikili dosyası, başarısız kimlik doğrulama zaman damgasını `server.log` içinde saklar. 96 saatlik ödeme süresi dolduğunda başlatılmayı reddeder. Proxy artık her çağrıda `server.log` ve `auth-failure-v1.log` dosyalarını temizleyerek düzenleyici her başlatıldığında yeni bir ödeme süresi sağlar.
+3. **Go ikili denetimi (sunucu başlatma — ödeme süresi)** — Go ikili dosyası, başarısız kimlik doğrulama zaman damgasını `server.log` içinde saklar. 96 saatlik ödeme süresi dolduğunda başlatılmayı reddeder. Proxy artık her çağrıda `server.log` ve `auth-failure-v1.log` dosyalarını temizleyerek düzenleyici her başlatıldığında yeni bir ödeme süresi sağlar.
+4. **Go ikili denetimi (sunucu başlatma — HTTP doğrulaması)** — Go ikili dosyası doğrudan `https://phaser.io/api/user/?has=product:editor:desktop` adresine bir HTTP isteği gönderir. Sunucu "izin yok" yanıtı verirse, ikili dosya hemen engeller (ödeme modu yok). Proxy, `HTTPS_PROXY`'yi geçersiz bir adrese ayarlayarak HTTP isteğinin başarısız olmasını ve ödeme moduna geri dönmesini sağlar.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ npm run phaser-cracken --run              # Düzenleyiciyi başlat
 
 ```bash
 #!/bin/bash
-# Ödeme süresini sıfırlar, print-user-status'u yakalar, diğer her şeyi devreder
+# Ödeme süresini sıfırlar, phaser.io doğrulamasını engeller,
+# print-user-status'u yakalar, diğer her şeyi devreder
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Ödeme modunu zorla
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

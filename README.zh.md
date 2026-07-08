@@ -29,11 +29,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 许可证绕过工具，仅供非商业用途使用。
 
-绕过三层保护：
+绕过四层保护：
 
 1. **Electron JS 检查** — 修补 `WindowManager.js`，使 `isEditorActivated()` 始终返回 `true`。
 2. **Go 二进制文件检查（用户状态）** — 在 `PhaserEditor` 周围安装透明代理，拦截 `-tool print-user-status` 并返回虚假的订阅响应。所有其他命令透明地传递到真实二进制文件。
-3. **Go 二进制文件检查（服务器启动）** — Go 二进制文件将认证失败时间戳存储在 `server.log` 中。当 96 小时宽限期到期后，它将拒绝启动。代理现在在每次调用时截断 `server.log` 和 `auth-failure-v1.log`，每次编辑器启动时都会获得一个新的宽限期。
+3. **Go 二进制文件检查（服务器启动 — 宽限期）** — Go 二进制文件将认证失败时间戳存储在 `server.log` 中。当 96 小时宽限期到期后，它将拒绝启动。代理现在在每次调用时截断 `server.log` 和 `auth-failure-v1.log`，每次编辑器启动时都会获得一个新的宽限期。
+4. **Go 二进制文件检查（服务器启动 — HTTP 验证）** — Go 二进制文件直接向 `https://phaser.io/api/user/?has=product:editor:desktop` 发送 HTTP 请求。如果服务器回复"无权限"，则该二进制文件立即阻止（无宽限模式）。代理将 `HTTPS_PROXY` 设置为无效地址，强制 HTTP 请求失败并回退到宽限模式。
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -125,9 +126,11 @@ npm run phaser-cracken --run              # 启动编辑器
 
 ```bash
 #!/bin/bash
-# 重置宽限期，拦截 print-user-status，委托其他所有内容
+# 重置宽限期，阻止 phaser.io 验证，
+# 拦截 print-user-status，委托其他所有内容
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # 强制宽限模式
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

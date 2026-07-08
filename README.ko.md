@@ -29,11 +29,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 라이선스 우회 유틸리티(비상업적 용도 전용).
 
-세 가지 보호 계층을 우회합니다:
+네 가지 보호 계층을 우회합니다:
 
 1. **Electron JS 검사** — `WindowManager.js`를 패치하여 `isEditorActivated()`가 항상 `true`를 반환하도록 합니다.
 2. **Go 바이너리 검사(사용자 상태)** — `PhaserEditor` 주위에 투명 프록시를 설치하여 `-tool print-user-status`를 가로채고 가짜 구독 응답을 반환합니다. 다른 모든 명령은 실제 바이너리로 투명하게 전달됩니다.
-3. **Go 바이너리 검사(서버 시작)** — Go 바이너리가 인증 실패 타임스탬프를 `server.log`에 저장합니다. 96시간 유예 기간이 만료되면 시작을 거부합니다. 프록시는 매 호출 시 `server.log`와 `auth-failure-v1.log`를 잘라내어 편집기를 실행할 때마다 새로운 유예 기간을 제공합니다.
+3. **Go 바이너리 검사(서버 시작 — 유예 기간)** — Go 바이너리가 인증 실패 타임스탬프를 `server.log`에 저장합니다. 96시간 유예 기간이 만료되면 시작을 거부합니다. 프록시는 매 호출 시 `server.log`와 `auth-failure-v1.log`를 잘라내어 편집기를 실행할 때마다 새로운 유예 기간을 제공합니다.
+4. **Go 바이너리 검사(서버 시작 — HTTP 검증)** — Go 바이너리가 `https://phaser.io/api/user/?has=product:editor:desktop`로 직접 HTTP 요청을 보냅니다. 서버가 "권한 없음"으로 응답하면 바이너리가 즉시 차단합니다(유예 모드 없음). 프록시는 `HTTPS_PROXY`를 유효하지 않은 주소로 설정하여 HTTP 요청이 실패하고 유예 모드로 대체되도록 합니다.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -125,9 +126,11 @@ npm run phaser-cracken --run              # 편집기 실행
 
 ```bash
 #!/bin/bash
-# 유예 기간 재설정, print-user-status 가로채기, 나머지는 위임
+# 유예 기간 재설정, phaser.io 검증 차단,
+# print-user-status 가로채기, 나머지는 위임
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # 유예 모드 강제
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

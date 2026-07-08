@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5-Lizenzumgehungsdienstprogramm für nicht-kommerzielle Nutzung.
 
-Drei Schutzebenen werden umgangen:
+Vier Schutzebenen werden umgangen:
 
 1. **Electron JS-Prüfung** — patcht `WindowManager.js`, sodass `isEditorActivated()` immer `true` zurückgibt.
 2. **Go-Binärprüfung (Benutzerstatus)** — installiert einen transparenten Proxy um `PhaserEditor`, der `-tool print-user-status` abfängt und eine gefälschte Abonnementantwort zurückgibt. Alle anderen Befehle werden an die echte Binärdatei durchgereicht.
-3. **Go-Binärprüfung (Serverstart)** — die Go-Binärdatei speichert den Zeitstempel des Authentifizierungsfehlers in `server.log`. Wenn die 96-Stunden-Gnadenfrist abläuft, verweigert sie den Start. Der Proxy kürzt nun `server.log` und `auth-failure-v1.log` bei jedem Aufruf und gewährt so jedes Mal eine neue Gnadenfrist, wenn der Editor gestartet wird.
+3. **Go-Binärprüfung (Serverstart — Gnadenfrist)** — die Go-Binärdatei speichert den Zeitstempel des Authentifizierungsfehlers in `server.log`. Wenn die 96-Stunden-Gnadenfrist abläuft, verweigert sie den Start. Der Proxy kürzt nun `server.log` und `auth-failure-v1.log` bei jedem Aufruf und gewährt so jedes Mal eine neue Gnadenfrist, wenn der Editor gestartet wird.
+4. **Go-Binärprüfung (Serverstart — HTTP-Validierung)** — die Go-Binärdatei führt eine direkte HTTP-Anfrage an `https://phaser.io/api/user/?has=product:editor:desktop` durch. Wenn der Server mit "keine Berechtigung" antwortet, blockiert die Binärdatei sofort (kein Gnadenmodus). Der Proxy setzt `HTTPS_PROXY` auf eine ungültige Adresse, wodurch die HTTP-Anfrage fehlschlägt und in den Gnadenmodus zurückfällt.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Erstellt ein Proxy-Skript (Node.js oder bash) um die `PhaserEditor`-Binärdatei:
 
 ```bash
 #!/bin/bash
-# Setzt Gnadenfrist zurück, fängt print-user-status ab, delegiert alles andere
+# Setzt Gnadenfrist zurück, blockiert phaser.io-Validierung,
+# fängt print-user-status ab, delegiert alles andere
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Erzwingt Gnadenmodus
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

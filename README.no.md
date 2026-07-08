@@ -27,11 +27,12 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 lisensomgåelsesverktøy for ikke-kommersiell bruk.
 
-Tre lag med beskyttelse omgås:
+Fire lag med beskyttelse omgås:
 
 1. **Electron JS-sjekk** — patcher `WindowManager.js` slik at `isEditorActivated()` alltid returnerer `true`.
 2. **Go binær sjekk (brukerstatus)** — installerer en transparent proxy rundt `PhaserEditor` som fanger opp `-tool print-user-status` og returnerer et falskt abonnementssvar. Alle andre kommandoer sendes videre til den virkelige binære filen.
-3. **Go binær sjekk (serveroppstart)** — den binære Go-filen lagrer tidsstempelet for mislykket autentisering i `server.log`. Når 96-timers nådeperioden utløper, nekter den å starte. Proxyen tømmer nå `server.log` og `auth-failure-v1.log` ved hver kjøring, og gir en ny nådeperiode hver gang editoren startes.
+3. **Go binær sjekk (serveroppstart — nådeperiode)** — den binære Go-filen lagrer tidsstempelet for mislykket autentisering i `server.log`. Når 96-timers nådeperioden utløper, nekter den å starte. Proxyen tømmer nå `server.log` og `auth-failure-v1.log` ved hver kjøring, og gir en ny nådeperiode hver gang editoren startes.
+4. **Go binær sjekk (serveroppstart — HTTP-validering)** — den binære Go-filen gjør en direkte HTTP-forespørsel til `https://phaser.io/api/user/?has=product:editor:desktop`. Hvis serveren svarer med "ingen tillatelse", blokkerer den binære filen umiddelbart (ingen nådemodus). Proxyen setter `HTTPS_PROXY` til en ugyldig adresse, noe som tvinger HTTP-forespørselen til å mislykkes og falle tilbake til nådemodus.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Oppretter et proxy-skript (Node.js eller bash) rundt `PhaserEditor` binærfilen:
 
 ```bash
 #!/bin/bash
-# Nullstiller nådeperioden, fanger opp print-user-status, delegerer alt annet
+# Nullstiller nådeperioden, blokkerer phaser.io-validering,
+# fanger opp print-user-status, delegerer alt annet
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Tvinger nådemodus
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then

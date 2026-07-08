@@ -1,7 +1,7 @@
 import * as fs from "fs-extra";
 import * as path from "path";
 
-const PROXY_SIGNATURE = "# PhaserCracken Proxy v2";
+const PROXY_SIGNATURE = "# PhaserCracken Proxy v3";
 const PROXY_SIGNATURE_V1 = "# PhaserCracken Proxy v1";
 const REAL_SUFFIX = ".real";
 
@@ -81,6 +81,14 @@ function getUnixProxyScript(): string {
       'AUTH_FAIL_LOG="$PHASER_HOME/auth-failure-v1.log"',
       '[ -f "$SERVER_LOG" ] && : > "$SERVER_LOG"',
       '[ -f "$AUTH_FAIL_LOG" ] && : > "$AUTH_FAIL_LOG"',
+      '',
+      '# ── Block phaser.io validation ───────────────────────────────────',
+      '# The Go binary makes a direct HTTP request to phaser.io/api/user/',
+      '# to verify subscription. If phaser.io is reachable and responds',
+      '# with \"no permission\", the binary blocks immediately (no grace mode).',
+      '# Setting HTTPS_PROXY to an invalid address forces the connection to',
+      '# fail, triggering grace mode instead.',
+      'export HTTPS_PROXY="http://127.0.0.1:1"',
       "",
       '# ── Intercept -tool print-user-status ───────────────────────────',
       'for arg in "$@"; do',
@@ -115,6 +123,9 @@ function getWindowsProxyScript(): string {
       "set PHASER_HOME=%USERPROFILE%\\.phasereditor2d",
       'if exist "%PHASER_HOME%\\server.log" break > "%PHASER_HOME%\\server.log"',
       'if exist "%PHASER_HOME%\\auth-failure-v1.log" break > "%PHASER_HOME%\\auth-failure-v1.log"',
+      "",
+      "rem ── Block phaser.io validation ──",
+      "set HTTPS_PROXY=http://127.0.0.1:1",
       "",
       "set FOUND=0",
       "for %%a in (%*) do (",

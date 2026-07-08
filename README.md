@@ -31,7 +31,8 @@ Three layers of protection are bypassed:
 
 1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
 2. **Go binary check (user status)** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
-3. **Go binary check (server startup)** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy now truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches.
+3. **Go binary check (server startup — grace period)** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches.
+4. **Go binary check (server startup — HTTP validation)** — the Go binary makes a direct HTTP request to `https://phaser.io/api/user/?has=product:editor:desktop`. If the server responds with "no permission", the binary blocks immediately (no grace mode). The proxy sets `HTTPS_PROXY` to an invalid address, forcing the HTTP request to fail and fall back to grace mode.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -123,9 +124,11 @@ Creates a proxy script (Node.js or bash) around the `PhaserEditor` binary:
 
 ```bash
 #!/bin/bash
-# Resets grace period, intercepts print-user-status, delegates everything else
+# Resets grace period, blocks phaser.io validation,
+# intercepts print-user-status, delegates everything else
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+export HTTPS_PROXY="http://127.0.0.1:1"  # Force grace mode
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
