@@ -27,12 +27,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 lisans atlatma aracı — yalnızca ticari olmayan kullanım için.
 
-Dört koruma katmanı atlatılır:
+Three layers of protection are bypassed:
 
-1. **Electron JS denetimi** — `WindowManager.js` dosyasını yamalayarak `isEditorActivated()` fonksiyonunun her zaman `true` döndürmesini sağlar.
-2. **Go ikili denetimi (kullanıcı durumu)** — `PhaserEditor` etrafında `-tool print-user-status` komutunu yakalayan ve sahte bir abonelik yanıtı döndüren şeffaf bir proxy kurar. Diğer tüm komutlar gerçek ikili dosyaya iletilir.
-3. **Go ikili denetimi (sunucu başlatma — ödeme süresi)** — Go ikili dosyası, başarısız kimlik doğrulama zaman damgasını `server.log` içinde saklar. 96 saatlik ödeme süresi dolduğunda başlatılmayı reddeder. Proxy artık her çağrıda `server.log` ve `auth-failure-v1.log` dosyalarını temizleyerek düzenleyici her başlatıldığında yeni bir ödeme süresi sağlar.
-4. **Go ikili denetimi (sunucu başlatma — HTTP doğrulaması)** — Go ikili dosyası doğrudan `https://phaser.io/api/user/?has=product:editor:desktop` adresine bir HTTP isteği gönderir. Sunucu "izin yok" yanıtı verirse, ikili dosya hemen engeller (ödeme modu yok). Proxy, `HTTPS_PROXY`'yi geçersiz bir adrese ayarlayarak HTTP isteğinin başarısız olmasını ve ödeme moduna geri dönmesini sağlar.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -95,7 +94,7 @@ npm run phaser-cracken --auto
 # Veya adım adım:
 npm run phaser-cracken --patch            # JS denetimini atla
 npm run phaser-cracken --install-proxy    # Go ikili denetimini atla (proxy + ödeme sıfırlama)
-npm run phaser-cracken --seed-session     # Önceden oluşturulmuş oturum dosyası oluştur (eksikse gerekli)
+npm run phaser-cracken --copy-session     # Paketlenmiş oturum dosyasını yükle
 npm run phaser-cracken --reset-grace      # Go ikili başlatma denetimi için ödeme süresini sıfırla
 npm run phaser-cracken --run              # Düzenleyiciyi başlat
 ```
@@ -125,11 +124,9 @@ npm run phaser-cracken --run              # Düzenleyiciyi başlat
 
 ```bash
 #!/bin/bash
-# Ödeme süresini sıfırlar, phaser.io doğrulamasını engeller,
-# print-user-status'u yakalar, diğer her şeyi devreder
+# Ödeme süresini sıfırlar, print-user-status'u yakalar, diğer her şeyi devreder
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # Ödeme modunu zorla
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -149,11 +146,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | `PhaserEditor` ikili dosyası etrafına proxy kur                                                           |
 | `install-proxy --force`  | Proxy v1 → v2 yükselt veya yeniden kur                                                                    |
 | `uninstall-proxy`        | Proxy'yi kaldır, orijinal ikili dosyayı geri yükle                                                        |
-| `seed-session`           | Önceden oluşturulmuş oturum dosyası oluştur (Go ikilisi doğrulamayı atladığında gerekli)                    |
+| `copy-session [source]`  | Oturum dosyasını yükle (varsayılan olarak paketlenmiş kaynağı kullanır veya özel yol)                      |
 | `reset-grace`            | Go ikilisinin 96s ödeme süresini sıfırlamak için `server.log` / `auth-failure-v1.log` dosyalarını temizle |
 | `status`                 | Yama, proxy ve oturum durumunu göster                                                                     |
 | `run`                    | Phaser Editor'ı başlat                                                                                    |
-| `auto`                   | Tam kurulum: yama + proxy + seed-session + ödeme sıfırlama + başlatma                                                    |
+| `auto`                   | Tam kurulum: yama + proxy + copy-session + ödeme sıfırlama + başlatma                                                    |
 | `auto --no-run`          | Başlatmadan kurulum                                                                                       |
 | `backup-session`         | `user-session-v3.bin` dosyasını yedekle                                                                   |
 | `restore-session [file]` | Oturumu yedekten geri yükle                                                                               |
@@ -179,6 +176,7 @@ phaser-cracken auto --no-run    # Kurulumdan sonra başlatmayı atla
 | `PhaserEditor.real`                      | Orijinal Go ikili dosyası (yeniden adlandırılmış) |
 | `PhaserEditor.phaser-cracken.bin-backup` | Orijinal ikili dosyanın kopyası                   |
 | `PhaserEditor`                           | Proxy betiği (orijinalin yerine geçer)            |
+| `resources/user-session-v3.bin`          | Paketlenmiş oturum dosyası                       |
 
 ### Sıfırlanan Günlük Dosyaları
 
@@ -189,15 +187,15 @@ Proxy, Go ikilisinin ödeme süresini aktif tutmak için bu dosyaları her başl
 | `~/.phasereditor2d/server.log`          | Başarısız kimlik doğrulama zaman damgasını saklar (Go ikili) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Başarısız kimlik doğrulama işareti (Electron)                |
 
-### Katman 4: Oturum Dosyası
+### Katman 3: Ödeme Süresi ve Oturum Dosyası
 
-`user-session-v3.bin` dosyası olmadan, Go ikilisi HTTP doğrulamasını tamamen atlar ve `HTTPS_PROXY` engellemesine rağmen doğrudan "premium users" hatasına gider. `seed-session` komutu, ikilinin doğrulamayı denemesi, başarısız olması (ödeme modu) ve sunucuyu başlatması için minimum bir oturum dosyası yazar.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-Bu adım, `phaser-cracken auto`'nun bir parçası olarak otomatik olarak çalışır.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## Kaldırma
 

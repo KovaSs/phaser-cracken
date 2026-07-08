@@ -27,12 +27,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 — أداة تجاوز الترخيص للاستخدام غير التجاري.
 
-يتم تجاوز أربع طبقات من الحماية:
+Three layers of protection are bypassed:
 
-1. **فحص Electron JS** — يصحح ملف `WindowManager.js` بحيث يعيد `isEditorActivated()` القيمة `true` دائمًا.
-2. **فحص الثنائي Go (حالة المستخدم)** — يقوم بتثبيت وكيل شفاف حول `PhaserEditor` يعترض `-tool print-user-status` ويعيد استجابة اشتراك مزيفة. جميع الأوامر الأخرى تُمرَّر بشفافية إلى الثنائي الحقيقي.
-3. **فحص الثنائي Go (بدء تشغيل الخادم — فترة السماح)** — يخزن الثنائي Go طابع وقت فشل المصادقة في `server.log`. عندما تنتهي فترة السماح البالغة 96 ساعة، يرفض البدء. يقوم الوكيل الآن بإفراغ `server.log` و `auth-failure-v1.log` عند كل استدعاء، مما يمنح فترة سماح جديدة في كل مرة يُشغَّل فيها المحرر.
-4. **فحص الثنائي Go (بدء تشغيل الخادم — التحقق من HTTP)** — يقوم الثنائي Go بتقديم طلب HTTP مباشر إلى `https://phaser.io/api/user/?has=product:editor:desktop`. إذا رد الخادم بـ "لا إذن"، يقوم الثنائي بالحظر فورًا (بدون وضع السماح). يقوم الوكيل بتعيين `HTTPS_PROXY` إلى عنوان غير صالح، مما يجبر طلب HTTP على الفشل والعودة إلى وضع السماح.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -95,7 +94,7 @@ npm run phaser-cracken --auto
 # أو خطوة بخطوة:
 npm run phaser-cracken --patch            # تجاوز فحص JS
 npm run phaser-cracken --install-proxy    # تجاوز فحص الثنائي Go (وكيل + إعادة تعيين السماح)
-npm run phaser-cracken --seed-session     # إنشاء ملف جلسة مُنشأ مسبقًا (مطلوب في حالة الفقدان)
+npm run phaser-cracken --copy-session     # تثبيت ملف الجلسة المرفق
 npm run phaser-cracken --reset-grace      # إعادة تعيين فترة السماح لفحص بدء تشغيل الثنائي Go
 npm run phaser-cracken --run              # تشغيل المحرر
 ```
@@ -125,11 +124,9 @@ npm run phaser-cracken --run              # تشغيل المحرر
 
 ```bash
 #!/bin/bash
-# إعادة تعيين فترة السماح، حظر التحقق من phaser.io،
-# اعتراض print-user-status، تفويض كل شيء آخر
+# إعادة تعيين فترة السماح، اعتراض print-user-status، تفويض كل شيء آخر
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # فرض وضع السماح
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -149,11 +146,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | تثبيت غلاف وكيل حول الثنائي `PhaserEditor`                                             |
 | `install-proxy --force`  | ترقية الوكيل v1 ← v2 أو إعادة التثبيت                                                  |
 | `uninstall-proxy`        | إزالة الوكيل، استعادة الثنائي الأصلي                                                   |
-| `seed-session`           | إنشاء ملف جلسة مُنشأ مسبقًا (مطلوب عندما يتخطى الثنائي Go التحقق)                      |
+| `copy-session [source]`  | تثبيت ملف الجلسة (يستخدم المورد المرفق افتراضيًا، أو مسار مخصص)                     |
 | `reset-grace`            | إفراغ `server.log` / `auth-failure-v1.log` لإعادة تعيين فترة السماح 96 ساعة للثنائي Go |
 | `status`                 | عرض حالة التصحيح والوكيل والجلسة                                                       |
 | `run`                    | تشغيل Phaser Editor                                                                    |
-| `auto`                   | إعداد كامل: تصحيح + وكيل + seed-session + إعادة تعيين السماح + تشغيل                                  |
+| `auto`                   | إعداد كامل: تصحيح + وكيل + copy-session + إعادة تعيين السماح + تشغيل                                  |
 | `auto --no-run`          | إعداد بدون تشغيل                                                                       |
 | `backup-session`         | نسخ احتياطي لـ `user-session-v3.bin`                                                   |
 | `restore-session [file]` | استعادة الجلسة من النسخة الاحتياطية                                                    |
@@ -179,6 +176,7 @@ phaser-cracken auto --no-run    # تخطي التشغيل بعد الإعداد
 | `PhaserEditor.real`                      | الثنائي Go الأصلي (تمت إعادة تسميته) |
 | `PhaserEditor.phaser-cracken.bin-backup` | نسخة من الثنائي الأصلي               |
 | `PhaserEditor`                           | سكريبت الوكيل (يحل محل الأصلي)       |
+| `resources/user-session-v3.bin`          | ملف الجلسة المرفق                    |
 
 ### إعادة تعيين ملفات السجل
 
@@ -189,15 +187,15 @@ phaser-cracken auto --no-run    # تخطي التشغيل بعد الإعداد
 | `~/.phasereditor2d/server.log`          | يخزن طابع وقت فشل المصادقة (الثنائي Go) |
 | `~/.phasereditor2d/auth-failure-v1.log` | علامة فشل المصادقة (Electron)           |
 
-### الطبقة 4: ملف الجلسة
+### الطبقة 3: فترة السماح وملف الجلسة
 
-بدون ملف `user-session-v3.bin`، يتخطى الثنائي Go التحقق من HTTP بالكامل ويذهب مباشرة إلى خطأ "المستخدمين المميزين" — حتى مع حظر `HTTPS_PROXY`. يقوم أمر `seed-session` بكتابة ملف جلسة أدنى بحيث يحاول الثنائي التحقق ويفشل (وضع السماح) ويبدأ الخادم.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-يتم تشغيل هذه الخطوة تلقائيًا كجزء من `phaser-cracken auto`.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## إلغاء التثبيت
 

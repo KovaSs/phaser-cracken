@@ -27,12 +27,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5-Lizenzumgehungsdienstprogramm für nicht-kommerzielle Nutzung.
 
-Vier Schutzebenen werden umgangen:
+Three layers of protection are bypassed:
 
-1. **Electron JS-Prüfung** — patcht `WindowManager.js`, sodass `isEditorActivated()` immer `true` zurückgibt.
-2. **Go-Binärprüfung (Benutzerstatus)** — installiert einen transparenten Proxy um `PhaserEditor`, der `-tool print-user-status` abfängt und eine gefälschte Abonnementantwort zurückgibt. Alle anderen Befehle werden an die echte Binärdatei durchgereicht.
-3. **Go-Binärprüfung (Serverstart — Gnadenfrist)** — die Go-Binärdatei speichert den Zeitstempel des Authentifizierungsfehlers in `server.log`. Wenn die 96-Stunden-Gnadenfrist abläuft, verweigert sie den Start. Der Proxy kürzt nun `server.log` und `auth-failure-v1.log` bei jedem Aufruf und gewährt so jedes Mal eine neue Gnadenfrist, wenn der Editor gestartet wird.
-4. **Go-Binärprüfung (Serverstart — HTTP-Validierung)** — die Go-Binärdatei führt eine direkte HTTP-Anfrage an `https://phaser.io/api/user/?has=product:editor:desktop` durch. Wenn der Server mit "keine Berechtigung" antwortet, blockiert die Binärdatei sofort (kein Gnadenmodus). Der Proxy setzt `HTTPS_PROXY` auf eine ungültige Adresse, wodurch die HTTP-Anfrage fehlschlägt und in den Gnadenmodus zurückfällt.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -95,7 +94,7 @@ npm run phaser-cracken --auto
 # Oder Schritt für Schritt:
 npm run phaser-cracken --patch            # JS-Prüfung umgehen
 npm run phaser-cracken --install-proxy    # Go-Binärprüfung umgehen (Proxy + Gnadenfrist-Reset)
-npm run phaser-cracken --seed-session     # Vorgefertigte Sitzungsdatei erstellen (erforderlich, falls fehlend)
+npm run phaser-cracken --copy-session     # Gebündelte Sitzungsdatei installieren
 npm run phaser-cracken --reset-grace      # Gnadenfrist für Go-Binärstart-Prüfung zurücksetzen
 npm run phaser-cracken --run              # Editor starten
 ```
@@ -125,11 +124,9 @@ Erstellt ein Proxy-Skript (Node.js oder bash) um die `PhaserEditor`-Binärdatei:
 
 ```bash
 #!/bin/bash
-# Setzt Gnadenfrist zurück, blockiert phaser.io-Validierung,
-# fängt print-user-status ab, delegiert alles andere
+# Setzt Gnadenfrist zurück, fängt print-user-status ab, delegiert alles andere
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # Erzwingt Gnadenmodus
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -149,11 +146,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Proxy-Wrapper um `PhaserEditor`-Binärdatei installieren                            |
 | `install-proxy --force`  | Proxy v1 → v2 aktualisieren oder neu installieren                                  |
 | `uninstall-proxy`        | Proxy entfernen, originale Binärdatei wiederherstellen                             |
-| `seed-session`           | Vorgefertigte Sitzungsdatei erstellen (erforderlich, wenn die Go-Binärdatei die Validierung überspringt) |
+| `copy-session [source]`  | Sitzungsdatei installieren (verwendet standardmäßig gebündelte Ressource oder benutzerdefinierten Pfad) |
 | `reset-grace`            | `server.log` / `auth-failure-v1.log` leeren, um die 96h Gnadenfrist zurückzusetzen |
 | `status`                 | Patch-, Proxy- und Sitzungsstatus anzeigen                                         |
 | `run`                    | Phaser Editor starten                                                              |
-| `auto`                   | Komplette Einrichtung: Patch + Proxy + seed-session + Gnadenfrist-Reset + Start                       |
+| `auto`                   | Komplette Einrichtung: Patch + Proxy + copy-session + Gnadenfrist-Reset + Start                       |
 | `auto --no-run`          | Einrichtung ohne Start                                                             |
 | `backup-session`         | `user-session-v3.bin` sichern                                                      |
 | `restore-session [file]` | Sitzung aus Backup wiederherstellen                                                |
@@ -179,6 +176,7 @@ phaser-cracken auto --no-run    # Start nach Einrichtung überspringen
 | `PhaserEditor.real`                      | Originale Go-Binärdatei (umbenannt) |
 | `PhaserEditor.phaser-cracken.bin-backup` | Kopie der originalen Binärdatei     |
 | `PhaserEditor`                           | Proxy-Skript (ersetzt Original)     |
+| `resources/user-session-v3.bin`          | Gebündelte Sitzungsdatei            |
 
 ### Zurückgesetzte Logdateien
 
@@ -189,15 +187,15 @@ Der Proxy kürzt diese Dateien bei jedem Start, um die Gnadenfrist der Go-Binär
 | `~/.phasereditor2d/server.log`          | Speichert Authentifizierungsfehler-Zeitstempel (Go-Binärdatei) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Authentifizierungsfehler-Markierung (Electron)                 |
 
-### Ebene 4: Sitzungsdatei
+### Ebene 3: Gnadenfrist und Sitzungsdatei
 
-Ohne eine `user-session-v3.bin`-Datei überspringt die Go-Binärdatei die HTTP-Validierung vollständig und geht direkt zum Fehler "premium users" — selbst wenn `HTTPS_PROXY` blockiert. Der Befehl `seed-session` schreibt eine minimale Sitzungsdatei, sodass die Binärdatei eine Validierung versucht, fehlschlägt (Gnadenmodus) und den Server startet.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-Dieser Schritt wird automatisch als Teil von `phaser-cracken auto` ausgeführt.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## Deinstallation
 

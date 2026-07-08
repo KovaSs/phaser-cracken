@@ -29,12 +29,11 @@
 
 ยูทิลิตีสำหรับบายพาสไลเซนส์ ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 สำหรับการใช้งานที่ไม่ใช่เชิงพาณิชย์
 
-บายพาสการป้องกันสี่ชั้น:
+Three layers of protection are bypassed:
 
-1. **การตรวจสอบ Electron JS** — แก้ไข `WindowManager.js` ให้ `isEditorActivated()` คืนค่า `true` เสมอ
-2. **การตรวจสอบไบนารี Go (สถานะผู้ใช้)** — ติดตั้งพร็อกซีแบบโปร่งใสรอบ `PhaserEditor` ที่ดักจับ `-tool print-user-status` และคืนค่า JSON การสมัครสมาชิกปลอม คำสั่งอื่น ๆ ทั้งหมดจะถูกส่งต่อไปยังไบนารีจริงแบบโปร่งใส
-3. **การตรวจสอบไบนารี Go (การเริ่มต้นเซิร์ฟเวอร์ — ระยะเวลาผ่อนผัน)** — ไบนารี Go เก็บประทับเวลาความล้มเหลวในการตรวจสอบสิทธิ์ใน `server.log` เมื่อระยะเวลาผ่อนผัน 96 ชั่วโมงหมดลง มันจะปฏิเสธที่จะเริ่มทำงาน พร็อกซีจะตัดทอน `server.log` และ `auth-failure-v1.log` ทุกครั้งที่เรียกใช้ ทำให้ได้รับระยะเวลาผ่อนผันใหม่ทุกครั้งที่เปิดแก้ไข
-4. **การตรวจสอบไบนารี Go (การเริ่มต้นเซิร์ฟเวอร์ — การตรวจสอบ HTTP)** — ไบนารี Go ทำการร้องขอ HTTP โดยตรงไปยัง `https://phaser.io/api/user/?has=product:editor:desktop` หากเซิร์ฟเวอร์ตอบกลับด้วย "ไม่มีสิทธิ์" ไบนารีจะบล็อกทันที (ไม่มีโหมดผ่อนผัน) พร็อกซีจะตั้งค่า `HTTPS_PROXY` เป็นที่อยู่ที่ไม่ถูกต้อง บังคับให้คำขอ HTTP ล้มเหลวและกลับสู่โหมดผ่อนผัน
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -97,7 +96,7 @@ npm run phaser-cracken --auto
 # หรือทีละขั้นตอน:
 npm run phaser-cracken --patch            # บายพาสการตรวจสอบ JS
 npm run phaser-cracken --install-proxy    # บายพาสการตรวจสอบไบนารี Go (พร็อกซี + รีเซ็ตระยะเวลาผ่อนผัน)
-npm run phaser-cracken --seed-session     # สร้างไฟล์เซสชันที่สร้างไว้ล่วงหน้า (จำเป็นหากไม่มี)
+npm run phaser-cracken --copy-session     # ติดตั้งไฟล์เซสชันที่มาพร้อมกับโปรแกรม
 npm run phaser-cracken --reset-grace      # รีเซ็ตระยะเวลาผ่อนผันสำหรับการตรวจสอบการเริ่มต้นไบนารี Go
 npm run phaser-cracken --run              # เปิดแก้ไข
 ```
@@ -127,11 +126,9 @@ npm run phaser-cracken --run              # เปิดแก้ไข
 
 ```bash
 #!/bin/bash
-# รีเซ็ตระยะเวลาผ่อนผัน บล็อกการตรวจสอบ phaser.io
-# ดักจับ print-user-status ส่งต่ออย่างอื่นทั้งหมด
+# รีเซ็ตระยะเวลาผ่อนผัน ดักจับ print-user-status ส่งต่ออย่างอื่นทั้งหมด
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # บังคับโหมดผ่อนผัน
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -151,11 +148,11 @@ exec "$0.real" "$@"
 | `install-proxy`            | ติดตั้งตัวห่อพร็อกซีรอบไบนารี `PhaserEditor`                                  |
 | `install-proxy --force`    | อัปเกรดพร็อกซี v1 → v2 หรือติดตั้งใหม่                                        |
 | `uninstall-proxy`          | ลบพร็อกซี กู้คืนไบนารีต้นฉบับ                                                 |
-| `seed-session`             | สร้างไฟล์เซสชันที่สร้างไว้ล่วงหน้า (จำเป็นเมื่อไบนารี Go ข้ามการตรวจสอบ)      |
+| `copy-session [source]`    | ติดตั้งไฟล์เซสชัน (ใช้ทรัพยากรที่มาพร้อมกันโดยค่าเริ่มต้น หรือเส้นทางที่กำหนดเอง) |
 | `reset-grace`              | ล้าง `server.log` / `auth-failure-v1.log` เพื่อรีเซ็ตระยะเวลาผ่อนผัน 96 ชม. ของไบนารี Go |
 | `status`                   | แสดงสถานะการแก้ไข พร็อกซี และเซสชัน                                          |
 | `run`                      | เปิด Phaser Editor                                                            |
-| `auto`                     | การตั้งค่าที่สมบูรณ์: แก้ไข + พร็อกซี + seed-session + รีเซ็ตระยะเวลาผ่อนผัน + เปิดใช้งาน    |
+| `auto`                     | การตั้งค่าที่สมบูรณ์: แก้ไข + พร็อกซี + copy-session + รีเซ็ตระยะเวลาผ่อนผัน + เปิดใช้งาน    |
 | `auto --no-run`            | การตั้งค่าโดยไม่เปิดใช้งาน                                                     |
 | `backup-session`           | สำรองข้อมูล `user-session-v3.bin`                                             |
 | `restore-session [file]`   | กู้คืนเซสชันจากข้อมูลสำรอง                                                    |
@@ -181,6 +178,7 @@ phaser-cracken auto --no-run    # ข้ามการเปิดใช้ง�
 | `PhaserEditor.real`                        | ไบนารี Go ต้นฉบับ (เปลี่ยนชื่อแล้ว)    |
 | `PhaserEditor.phaser-cracken.bin-backup`   | สำเนาของไบนารีต้นฉบับ                 |
 | `PhaserEditor`                             | สคริปต์พร็อกซี (แทนที่ไฟล์ต้นฉบับ)    |
+| `resources/user-session-v3.bin`            | ไฟล์เซสชันที่มาพร้อมกับโปรแกรม       |
 
 ### ไฟล์บันทึกที่ถูกรีเซ็ต
 
@@ -191,15 +189,15 @@ phaser-cracken auto --no-run    # ข้ามการเปิดใช้ง�
 | `~/.phasereditor2d/server.log`              | เก็บประทับเวลาความล้มเหลวในการตรวจสอบสิทธิ์ (ไบนารี Go) |
 | `~/.phasereditor2d/auth-failure-v1.log`     | เครื่องหมายความล้มเหลวในการตรวจสอบสิทธิ์ (Electron)     |
 
-### ชั้นที่ 4: ไฟล์เซสชัน
+### ชั้นที่ 3: ระยะเวลาผ่อนผันและไฟล์เซสชัน
 
-หากไม่มีไฟล์ `user-session-v3.bin` ไบนารี Go จะข้ามการตรวจสอบ HTTP ทั้งหมดและไปที่ข้อผิดพลาด "premium users" โดยตรง — แม้จะมีการบล็อก `HTTPS_PROXY` คำสั่ง `seed-session` จะเขียนไฟล์เซสชันขั้นต่ำเพื่อให้ไบนารีพยายามตรวจสอบ ล้มเหลว (โหมดผ่อนผัน) และเริ่มเซิร์ฟเวอร์
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-ขั้นตอนนี้ทำงานโดยอัตโนมัติเป็นส่วนหนึ่งของ `phaser-cracken auto`
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## การถอนการติดตั้ง
 

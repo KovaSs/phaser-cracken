@@ -9,7 +9,7 @@ import * as fs from "fs-extra";
 import { findPhaserEditor, PhaserEditorPaths } from "./finder";
 import { isPatched, patchWindowManager, restoreWindowManager } from "./patcher";
 import { isProxyInstalled, needsUpgrade, installProxy, uninstallProxy } from "./proxy";
-import { backupSession, listBackups, restoreSession, seedSession, sessionStatus } from "./session";
+import { backupSession, copySession, listBackups, restoreSession, sessionStatus } from "./session";
 
 const program = new Command();
 
@@ -255,23 +255,17 @@ program
     }
   });
 
-// ─── seed-session ────────────────────────────────────────────────────────────
+// ─── copy-session ────────────────────────────────────────────────────────────
 
 program
-  .command("seed-session")
-  .description("Create a pre-built session file (required when the Go binary skips validation without it)")
-  .action(() => {
-    const phaserHome = path.join(os.homedir(), ".phasereditor2d");
-    const sessionFile = path.join(phaserHome, "user-session-v3.bin");
-
-    if (fs.existsSync(sessionFile)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Session file already exists.`);
-      return;
-    }
-
-    console.log(`${chalk.green("==>")} ${emoji.get("package")} Seeding session file...`);
-    seedSession();
-    console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Session file created.`);
+  .command("copy-session")
+  .description("Install session file (uses bundled resource by default)")
+  .argument("[source]", "Path to a working user-session-v3.bin (optional, uses bundled resource)")
+  .action((source?: string) => {
+    const label = source ? chalk.green(source) : chalk.green("bundled resource");
+    console.log(`${chalk.green("==>")} ${emoji.get("package")} Copying session from ${label}...`);
+    copySession(source || undefined);
+    console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Session file installed.`);
   });
 
 // ─── backup-session ──────────────────────────────────────────────────────────
@@ -337,7 +331,7 @@ program
 
 program
   .command("auto")
-  .description("Complete setup: patch + install-proxy + seed-session + reset-grace + run")
+  .description("Complete setup: patch + install-proxy + copy-session + reset-grace + run")
   .option("--no-run", "Skip launching the editor after setup")
   .action((opts: { run?: boolean }) => {
     const paths = ensureFound();
@@ -368,17 +362,17 @@ program
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy upgraded.`);
     }
 
-    // Step 3: Seed session file (if missing)
+    // Step 3: Install bundled session file
     const sessionFile = path.join(os.homedir(), ".phasereditor2d", "user-session-v3.bin");
     if (!fs.existsSync(sessionFile)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("package")} [3/4] Seeding session file...`);
-      seedSession();
-      console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Session file created.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("package")} [3/4] Installing bundled session file...`);
+      copySession();
+      console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Session file installed.`);
     } else {
       console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [3/4] Session file exists.`);
     }
 
-    // Step 5: Reset grace period
+    // Step 4: Reset grace period
     console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [4/4] Resetting grace period...`);
     resetGracePeriod();
 
@@ -403,11 +397,11 @@ export function runCli(argv: string[] = process.argv): void {
   program
     .name("phaser-cracken")
     .description("Phaser Editor 5 license bypass utility")
-    .version("1.5.0")
+    .version("1.6.0")
     .addHelpText("beforeAll", () => {
       return [
         "",
-        chalk.blue.bold("  \u26a1 PhaserCracken v1.5.0"),
+        chalk.blue.bold("  \u26a1 PhaserCracken v1.6.0"),
         chalk.dim("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"),
         "",
       ].join("\n");

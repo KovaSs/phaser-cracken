@@ -27,12 +27,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 licensomgåelsesværktøj til ikke-kommerciel brug.
 
-Fire beskyttelseslag omgås:
+Three layers of protection are bypassed:
 
-1. **Electron JS-tjek** — patcher `WindowManager.js`, så `isEditorActivated()` altid returnerer `true`.
-2. **Go binærtjek (brugerstatus)** — installerer en透明 proxy omkring `PhaserEditor`, der opsnapper `-tool print-user-status` og returnerer et falskt abonnementssvar. Alle andre kommandoer sendes videre til den rigtige binære fil.
-3. **Go binærtjek (serverstart — nådeperiode)** — den binære Go-fil gemmer tidsstemplet for godkendelsesfejl i `server.log`. Når nådeperioden på 96 timer udløber, nægter den at starte. Proxyen afkorter nu `server.log` og `auth-failure-v1.log` ved hver kørsel, hvilket giver en ny nådeperiode hver gang editoren startes.
-4. **Go binærtjek (serverstart — HTTP-validering)** — den binære Go-fil foretager en direkte HTTP-anmodning til `https://phaser.io/api/user/?has=product:editor:desktop`. Hvis serveren svarer med "ingen tilladelse", blokerer den binære fil straks (ingen nådetilstand). Proxyen sætter `HTTPS_PROXY` til en ugyldig adresse, hvilket tvinger HTTP-anmodningen til at mislykkes og falde tilbage til nådetilstand.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -95,7 +94,7 @@ npm run phaser-cracken --auto
 # Eller trin for trin:
 npm run phaser-cracken --patch            # Omgå JS-tjek
 npm run phaser-cracken --install-proxy    # Omgå Go binærtjek (proxy + nådeperiode-nulstilling)
-npm run phaser-cracken --seed-session     # Opret præ-bygget sessionsfil (påkrævet hvis mangler)
+npm run phaser-cracken --copy-session     # Installer bundtet sessionsfil
 npm run phaser-cracken --reset-grace      # Nulstil nådeperiode for Go binær start-tjek
 npm run phaser-cracken --run              # Start editoren
 ```
@@ -125,11 +124,9 @@ Opretter et proxyscript (Node.js eller bash) omkring `PhaserEditor`-binæren:
 
 ```bash
 #!/bin/bash
-# Nulstiller nådeperiode, blokerer phaser.io-validering,
-# opsnapper print-user-status, sender alt andet videre
+# Nulstiller nådeperiode, opsnapper print-user-status, sender alt andet videre
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # Tvinger nådetilstand
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -149,11 +146,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Installer proxy-wrapper omkring `PhaserEditor` binær                                  |
 | `install-proxy --force`  | Opgrader proxy v1 → v2 eller geninstaller                                             |
 | `uninstall-proxy`        | Fjern proxy, gendan original binær                                                    |
-| `seed-session`           | Opret præ-bygget sessionsfil (påkrævet når Go-binæren springer validering over)       |
+| `copy-session [source]`  | Installer sessionsfil (bruger bundtet ressource som standard, eller brugerdefineret sti) |
 | `reset-grace`            | Ryd `server.log` / `auth-failure-v1.log` for at nulstille Go-binærens 96t nådeperiode |
 | `status`                 | Vis patch-, proxy- og sessionsstatus                                                  |
 | `run`                    | Start Phaser Editor                                                                   |
-| `auto`                   | Komplet opsætning: patch + proxy + seed-session + nådeperiode-nulstilling + start                        |
+| `auto`                   | Komplet opsætning: patch + proxy + copy-session + nådeperiode-nulstilling + start                        |
 | `auto --no-run`          | Opsætning uden start                                                                  |
 | `backup-session`         | Sikkerhedskopier `user-session-v3.bin`                                                |
 | `restore-session [file]` | Gendan session fra sikkerhedskopi                                                     |
@@ -179,6 +176,7 @@ phaser-cracken auto --no-run    # Spring start over efter opsætning
 | `PhaserEditor.real`                      | Original Go binær (omdøbt)        |
 | `PhaserEditor.phaser-cracken.bin-backup` | Kopi af original binær            |
 | `PhaserEditor`                           | Proxyscript (erstatter original)  |
+| `resources/user-session-v3.bin`          | Bundtet sessionsfil               |
 
 ### Logfiler der nulstilles
 
@@ -189,15 +187,15 @@ Proxyen afkorter disse filer ved hver start for at holde Go-binærens nådeperio
 | `~/.phasereditor2d/server.log`          | Gemmer tidsstempel for godkendelsesfejl (Go binær) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Markeringsfil for godkendelsesfejl (Electron)      |
 
-### Lag 4: Sessionsfil
+### Lag 3: Nådeperiode og sessionsfil
 
-Uden en `user-session-v3.bin`-fil springer Go-binæren HTTP-validering helt over og går direkte til "premium users"-fejlen — selv med `HTTPS_PROXY` blokering. Kommandoen `seed-session` skriver en minimal sessionsfil, så binæren forsøger validering, mislykkes (nådetilstand) og starter serveren.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-Dette trin kører automatisk som en del af `phaser-cracken auto`.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## Afinstallation
 

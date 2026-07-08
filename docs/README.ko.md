@@ -29,12 +29,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 라이선스 우회 유틸리티(비상업적 용도 전용).
 
-네 가지 보호 계층을 우회합니다:
+Three layers of protection are bypassed:
 
-1. **Electron JS 검사** — `WindowManager.js`를 패치하여 `isEditorActivated()`가 항상 `true`를 반환하도록 합니다.
-2. **Go 바이너리 검사(사용자 상태)** — `PhaserEditor` 주위에 투명 프록시를 설치하여 `-tool print-user-status`를 가로채고 가짜 구독 응답을 반환합니다. 다른 모든 명령은 실제 바이너리로 투명하게 전달됩니다.
-3. **Go 바이너리 검사(서버 시작 — 유예 기간)** — Go 바이너리가 인증 실패 타임스탬프를 `server.log`에 저장합니다. 96시간 유예 기간이 만료되면 시작을 거부합니다. 프록시는 매 호출 시 `server.log`와 `auth-failure-v1.log`를 잘라내어 편집기를 실행할 때마다 새로운 유예 기간을 제공합니다.
-4. **Go 바이너리 검사(서버 시작 — HTTP 검증)** — Go 바이너리가 `https://phaser.io/api/user/?has=product:editor:desktop`로 직접 HTTP 요청을 보냅니다. 서버가 "권한 없음"으로 응답하면 바이너리가 즉시 차단합니다(유예 모드 없음). 프록시는 `HTTPS_PROXY`를 유효하지 않은 주소로 설정하여 HTTP 요청이 실패하고 유예 모드로 대체되도록 합니다.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -97,7 +96,7 @@ npm run phaser-cracken --auto
 # 또는 단계별로:
 npm run phaser-cracken --patch            # JS 검사 우회
 npm run phaser-cracken --install-proxy    # Go 바이너리 검사 우회(프록시 + 유예 기간 재설정)
-npm run phaser-cracken --seed-session     # 사전 빌드된 세션 파일 생성 (없는 경우 필요)
+npm run phaser-cracken --copy-session     # 번들된 세션 파일 설치
 npm run phaser-cracken --reset-grace      # Go 바이너리 시작 검사의 유예 기간 재설정
 npm run phaser-cracken --run              # 편집기 실행
 ```
@@ -127,11 +126,9 @@ npm run phaser-cracken --run              # 편집기 실행
 
 ```bash
 #!/bin/bash
-# 유예 기간 재설정, phaser.io 검증 차단,
-# print-user-status 가로채기, 나머지는 위임
+# 유예 기간 재설정, print-user-status 가로채기, 나머지는 위임
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # 유예 모드 강제
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -151,11 +148,11 @@ exec "$0.real" "$@"
 | `install-proxy`           | `PhaserEditor` 바이너리 주위에 프록시 래퍼 설치                   |
 | `install-proxy --force`   | 프록시 v1 → v2 업그레이드 또는 재설치                             |
 | `uninstall-proxy`         | 프록시 제거, 원본 바이너리 복원                                   |
-| `seed-session`            | 사전 빌드된 세션 파일 생성 (Go 바이너리가 검증을 건너뛸 때 필요)  |
+| `copy-session [source]`   | 세션 파일 설치 (기본적으로 번들 리소스 사용, 또는 사용자 지정 경로) |
 | `reset-grace`             | `server.log` / `auth-failure-v1.log`를 지워 Go 바이너리의 96시간 유예 기간 재설정 |
 | `status`                  | 패치, 프록시 및 세션 상태 표시                                    |
 | `run`                     | Phaser Editor 실행                                                |
-| `auto`                    | 전체 설정: 패치 + 프록시 + seed-session + 유예 기간 재설정 + 실행          |
+| `auto`                    | 전체 설정: 패치 + 프록시 + copy-session + 유예 기간 재설정 + 실행          |
 | `auto --no-run`           | 실행 없이 설정                                                    |
 | `backup-session`          | `user-session-v3.bin` 백업                                        |
 | `restore-session [file]`  | 백업에서 세션 복원                                                |
@@ -181,6 +178,7 @@ phaser-cracken auto --no-run    # 설정 후 실행 건너뛰기
 | `PhaserEditor.real`                       | 원본 Go 바이너리(이름 변경됨)       |
 | `PhaserEditor.phaser-cracken.bin-backup`  | 원본 바이너리 복사본                |
 | `PhaserEditor`                            | 프록시 스크립트(원본 대체)          |
+| `resources/user-session-v3.bin`           | 번들된 세션 파일                   |
 
 ### 재설정되는 로그 파일
 
@@ -191,15 +189,15 @@ phaser-cracken auto --no-run    # 설정 후 실행 건너뛰기
 | `~/.phasereditor2d/server.log`              | 인증 실패 타임스탬프 저장(Go 바이너리)          |
 | `~/.phasereditor2d/auth-failure-v1.log`     | 인증 실패 마커(Electron)                       |
 
-### 계층 4: 세션 파일
+### 계층 3: 유예 기간 및 세션 파일
 
-`user-session-v3.bin` 파일이 없으면 Go 바이너리는 HTTP 검증을 완전히 건너뛰고 `HTTPS_PROXY` 차단에도 불구하고 바로 "premium users" 오류로 이동합니다. `seed-session` 명령은 최소 세션 파일을 작성하여 바이너리가 검증을 시도하고, 실패하며(유예 모드), 서버를 시작하도록 합니다.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-이 단계는 `phaser-cracken auto`의 일부로 자동 실행됩니다.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## 제거
 

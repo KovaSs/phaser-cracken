@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.6.0 (2026-07-08)
+
+### Added
+- **Bundled session file** — `resources/user-session-v3.bin` distributed with the package
+- **`copy-session`** command — installs bundled session file to `~/.phasereditor2d/`, with optional custom path
+
+### Changed
+- `seed-session` → `copy-session` — now uses bundled resource by default (no external file needed)
+- `auto` command: 4 steps — patch → install-proxy → copy-session → reset-grace → run
+- Updated all 22 README files
+
+---
+
 ## v1.5.0 (2026-07-08)
 
 ### Changed

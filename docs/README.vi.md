@@ -27,12 +27,11 @@
 
 Công cụ vượt giấy phép ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 dành cho mục đích phi thương mại.
 
-Bốn lớp bảo vệ bị vượt qua:
+Three layers of protection are bypassed:
 
-1. **Kiểm tra Electron JS** — vá `WindowManager.js` để `isEditorActivated()` luôn trả về `true`.
-2. **Kiểm tra nhị phân Go (trạng thái người dùng)** — cài đặt một proxy trong suốt quanh `PhaserEditor` để chặn `-tool print-user-status` và trả về phản hồi đăng ký giả. Tất cả các lệnh khác được chuyển tiếp đến tệp nhị phân thật.
-3. **Kiểm tra nhị phân Go (khởi động máy chủ — thời gian gia hạn)** — tệp nhị phân Go lưu dấu thời gian xác thực thất bại trong `server.log`. Khi thời gian gia hạn 96 giờ hết hạn, nó từ chối khởi động. Proxy hiện cắt ngắn `server.log` và `auth-failure-v1.log` mỗi lần gọi, cung cấp thời gian gia hạn mới mỗi khi trình chỉnh sửa được khởi chạy.
-4. **Kiểm tra nhị phân Go (khởi động máy chủ — xác thực HTTP)** — tệp nhị phân Go thực hiện yêu cầu HTTP trực tiếp đến `https://phaser.io/api/user/?has=product:editor:desktop`. Nếu máy chủ phản hồi "không có quyền", tệp nhị phân chặn ngay lập tức (không có chế độ gia hạn). Proxy đặt `HTTPS_PROXY` thành địa chỉ không hợp lệ, buộc yêu cầu HTTP thất bại và quay lại chế độ gia hạn.
+1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A bundled session file (`copy-session`) prevents the binary from skipping validation when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -95,7 +94,7 @@ npm run phaser-cracken --auto
 # Hoặc từng bước:
 npm run phaser-cracken --patch            # Vượt qua kiểm tra JS
 npm run phaser-cracken --install-proxy    # Vượt qua kiểm tra nhị phân Go (proxy + đặt lại thời gian gia hạn)
-npm run phaser-cracken --seed-session     # Tạo tệp phiên làm việc được xây dựng sẵn (cần thiết nếu thiếu)
+npm run phaser-cracken --copy-session     # Cài đặt tệp phiên làm việc được đóng gói
 npm run phaser-cracken --reset-grace      # Đặt lại thời gian gia hạn cho kiểm tra khởi động nhị phân Go
 npm run phaser-cracken --run              # Khởi chạy trình chỉnh sửa
 ```
@@ -125,11 +124,9 @@ Tạo một tập lệnh proxy (Node.js hoặc bash) quanh tệp nhị phân `Ph
 
 ```bash
 #!/bin/bash
-# Đặt lại thời gian gia hạn, chặn xác thực phaser.io,
-# chặn print-user-status, ủy quyền mọi thứ khác
+# Đặt lại thời gian gia hạn, chặn print-user-status, ủy quyền mọi thứ khác
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # Buộc chế độ gia hạn
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -149,11 +146,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Cài đặt proxy quanh tệp nhị phân `PhaserEditor`                                  |
 | `install-proxy --force`  | Nâng cấp proxy v1 → v2 hoặc cài đặt lại                                          |
 | `uninstall-proxy`        | Gỡ bỏ proxy, khôi phục tệp nhị phân gốc                                          |
-| `seed-session`           | Tạo tệp phiên làm việc được xây dựng sẵn (cần thiết khi tệp nhị phân Go bỏ qua xác thực) |
+| `copy-session [source]`  | Cài đặt tệp phiên làm việc (sử dụng tài nguyên được đóng gói theo mặc định hoặc đường dẫn tùy chỉnh) |
 | `reset-grace`            | Xóa `server.log` / `auth-failure-v1.log` để đặt lại thời gian gia hạn 96h của Go |
 | `status`                 | Hiển thị trạng thái vá, proxy và phiên làm việc                                  |
 | `run`                    | Khởi chạy Phaser Editor                                                          |
-| `auto`                   | Thiết lập hoàn chỉnh: vá + proxy + seed-session + đặt lại thời gian gia hạn + khởi chạy         |
+| `auto`                   | Thiết lập hoàn chỉnh: vá + proxy + copy-session + đặt lại thời gian gia hạn + khởi chạy         |
 | `auto --no-run`          | Thiết lập mà không khởi chạy                                                     |
 | `backup-session`         | Sao lưu `user-session-v3.bin`                                                    |
 | `restore-session [file]` | Khôi phục phiên từ bản sao lưu                                                   |
@@ -179,6 +176,7 @@ phaser-cracken auto --no-run    # Bỏ qua khởi chạy sau khi thiết lập
 | `PhaserEditor.real`                      | Tệp nhị phân Go gốc (đã đổi tên)  |
 | `PhaserEditor.phaser-cracken.bin-backup` | Bản sao của tệp nhị phân gốc      |
 | `PhaserEditor`                           | Tập lệnh proxy (thay thế bản gốc) |
+| `resources/user-session-v3.bin`          | Tệp phiên làm việc được đóng gói  |
 
 ### Các tệp nhật ký được đặt lại
 
@@ -189,15 +187,15 @@ Proxy cắt ngắn các tệp này mỗi lần khởi chạy để giữ cho th�
 | `~/.phasereditor2d/server.log`          | Lưu dấu thời gian xác thực thất bại (tệp nhị phân Go) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Dấu hiệu xác thực thất bại (Electron)                 |
 
-### Lớp 4: Tệp phiên làm việc
+### Lớp 3: Thời gian gia hạn và tệp phiên làm việc
 
-Nếu không có tệp `user-session-v3.bin`, tệp nhị phân Go sẽ bỏ qua hoàn toàn xác thực HTTP và đi thẳng đến lỗi "premium users" — ngay cả khi `HTTPS_PROXY` đang chặn. Lệnh `seed-session` ghi một tệp phiên làm việc tối thiểu để tệp nhị phân thử xác thực, thất bại (chế độ gia hạn) và khởi động máy chủ.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. A bundled session file is provided in `resources/` — `copy-session` installs it to `~/.phasereditor2d/`.
 
 ```bash
-npm run phaser-cracken --seed-session
+npm run phaser-cracken --copy-session
 ```
 
-Bước này tự động chạy như một phần của `phaser-cracken auto`.
+This step runs automatically as part of `phaser-cracken auto`.
 
 ## Gỡ cài đặt
 
