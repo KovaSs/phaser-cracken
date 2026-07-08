@@ -1,7 +1,8 @@
 import * as fs from "fs-extra";
 import * as path from "path";
 
-const PROXY_SIGNATURE = "# PhaserCracken Proxy v1";
+const PROXY_SIGNATURE = "# PhaserCracken Proxy v2";
+const PROXY_SIGNATURE_V1 = "# PhaserCracken Proxy v1";
 const REAL_SUFFIX = ".real";
 
 const FAKE_USER_JSON = JSON.stringify(
@@ -35,17 +36,31 @@ function getBackupPath(binPath: string): string {
   return binPath + ".phaser-cracken.bin-backup";
 }
 
+function getProxyContent(binPath: string): string | null {
+  if (!fs.existsSync(binPath)) return null;
+  try {
+    return fs.readFileSync(binPath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Checks whether the proxy is already installed.
+ * Checks whether the proxy is already installed (any version).
  */
 export function isProxyInstalled(binPath: string): boolean {
-  if (!fs.existsSync(binPath)) return false;
-  try {
-    const content = fs.readFileSync(binPath, "utf-8");
-    return content.includes(PROXY_SIGNATURE);
-  } catch {
-    return false;
-  }
+  const content = getProxyContent(binPath);
+  if (!content) return false;
+  return content.includes(PROXY_SIGNATURE) || content.includes(PROXY_SIGNATURE_V1);
+}
+
+/**
+ * Checks if the installed proxy needs upgrade to the current version.
+ */
+export function needsUpgrade(binPath: string): boolean {
+  const content = getProxyContent(binPath);
+  if (!content) return false;
+  return content.includes(PROXY_SIGNATURE_V1) && !content.includes(PROXY_SIGNATURE);
 }
 
 function getUnixProxyScript(): string {
@@ -53,10 +68,21 @@ function getUnixProxyScript(): string {
     [
       "#!/bin/bash",
       PROXY_SIGNATURE,
+      "",
+      '# ── Locate real binary ──────────────────────────────────────────',
       'DIR="$(cd "$(dirname "$0")" && pwd)"',
       `REAL="$DIR/$(basename "$0")${REAL_SUFFIX}"`,
       "",
-      "# Intercept -tool print-user-status",
+      '# ── Reset grace period ──────────────────────────────────────────',
+      '# The Go binary stores auth failure timestamp in server.log.',
+      '# Truncating it on each start gives a fresh 96h grace period.',
+      'PHASER_HOME="$HOME/.phasereditor2d"',
+      'SERVER_LOG="$PHASER_HOME/server.log"',
+      'AUTH_FAIL_LOG="$PHASER_HOME/auth-failure-v1.log"',
+      '[ -f "$SERVER_LOG" ] && : > "$SERVER_LOG"',
+      '[ -f "$AUTH_FAIL_LOG" ] && : > "$AUTH_FAIL_LOG"',
+      "",
+      '# ── Intercept -tool print-user-status ───────────────────────────',
       'for arg in "$@"; do',
       '  if [ "$arg" = "print-user-status" ]; then',
       '    echo "---output---"',
@@ -65,7 +91,7 @@ function getUnixProxyScript(): string {
       "  fi",
       "done",
       "",
-      "# Pass through to real binary",
+      '# ── Pass through to real binary ─────────────────────────────────',
       'if [ -x "$REAL" ]; then',
       '  exec "$REAL" "$@"',
       "else",
@@ -84,6 +110,11 @@ function getWindowsProxyScript(): string {
       "setlocal enabledelayedexpansion",
       "",
       "set REAL=%~dp0PhaserEditor.real.exe",
+      "",
+      "rem ── Reset grace period ──",
+      "set PHASER_HOME=%USERPROFILE%\\.phasereditor2d",
+      'if exist "%PHASER_HOME%\\server.log" break > "%PHASER_HOME%\\server.log"',
+      'if exist "%PHASER_HOME%\\auth-failure-v1.log" break > "%PHASER_HOME%\\auth-failure-v1.log"',
       "",
       "set FOUND=0",
       "for %%a in (%*) do (",
@@ -115,45 +146,51 @@ function getWindowsProxyScript(): string {
  *   `-tool print-user-status` and passes everything else to the real binary.
  * - Creates a backup copy of the original binary.
  *
- * Throws if already installed or if the binary is missing.
+ * @param binPath - Path to the PhaserEditor binary
+ * @param force - If true, reinstalls even if proxy is already installed (upgrades v1→v2)
+ * Throws if already installed (unless force) or if the binary is missing.
  */
-export function installProxy(binPath: string): void {
+export function installProxy(binPath: string, force: boolean = false): void {
   if (!fs.existsSync(binPath)) {
     throw new Error(`PhaserEditor binary not found at: ${binPath}`);
   }
 
-  if (isProxyInstalled(binPath)) {
-    throw new Error("Proxy is already installed.");
-  }
-
   const realPath = getRealPath(binPath);
 
-  if (fs.existsSync(realPath)) {
-    throw new Error(
-      `File ${realPath} already exists. The proxy may be partially installed.\n` +
-        `Run "phaser-cracken uninstall-proxy" first to clean up.`,
-    );
+  if (needsUpgrade(binPath) && force) {
+    // Upgrade: remove old proxy script, real binary stays
+    fs.removeSync(binPath);
+  } else if (isProxyInstalled(binPath)) {
+    if (!force) {
+      throw new Error(
+        "Proxy is already installed.\n" +
+          "Run with --force to reinstall (upgrade from v1 to v2).",
+      );
+    }
+    // Reinstall: remove proxy script, keep real binary
+    if (fs.existsSync(binPath)) {
+      fs.removeSync(binPath);
+    }
   }
 
-  // Backup the original binary
-  const backupPath = getBackupPath(binPath);
-  if (!fs.existsSync(backupPath)) {
-    fs.copySync(binPath, backupPath);
+  // Normal install (no proxy yet)
+  if (!isProxyInstalled(binPath) && !fs.existsSync(realPath)) {
+    // Backup the original binary
+    const backupPath = getBackupPath(binPath);
+    if (!fs.existsSync(backupPath)) {
+      fs.copySync(binPath, backupPath);
+    }
+    // Rename original to .real
+    fs.renameSync(binPath, realPath);
   }
-
-  // Rename original to .real
-  fs.renameSync(binPath, realPath);
 
   // Write proxy script
   const isWin = process.platform === "win32";
 
   if (isWin) {
-    // On Windows: PhaserEditor.exe becomes a .bat wrapper
-    // The original .exe was renamed to PhaserEditor.real.exe
     const batPath = binPath.replace(/\.exe$/i, ".bat");
     fs.writeFileSync(batPath, getWindowsProxyScript(), "utf-8");
   } else {
-    // On Unix: PhaserEditor becomes a bash script
     fs.writeFileSync(binPath, getUnixProxyScript(), {
       mode: 0o755,
       encoding: "utf-8",

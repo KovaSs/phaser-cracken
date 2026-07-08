@@ -1,13 +1,14 @@
-# ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟 
+# ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
-[🇷🇺 README](docs/RU_README.md)
+[🇷🇺 README](./README.ru.md)
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 license bypass utility for non-commercial use.
 
-Two layers of protection are bypassed:
+Three layers of protection are bypassed:
 
 1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
-2. **Go binary check** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+2. **Go binary check (user status)** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Go binary check (server startup)** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy now truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -69,7 +70,8 @@ npm run phaser-cracken --auto
 
 # Or step by step:
 npm run phaser-cracken --patch            # Bypass JS check
-npm run phaser-cracken --install-proxy    # Bypass Go binary check
+npm run phaser-cracken --install-proxy    # Bypass Go binary check (proxy + grace reset)
+npm run phaser-cracken --reset-grace      # Reset grace period for Go binary startup check
 npm run phaser-cracken --run              # Launch the editor
 ```
 
@@ -98,28 +100,36 @@ Creates a proxy script (Node.js or bash) around the `PhaserEditor` binary:
 
 ```bash
 #!/bin/bash
-# Intercepts print-user-status, delegates everything else
-if [ "$1" = "-tool" ] && [ "$2" = "print-user-status" ]; then
-  echo '{"user":{"subscriptionActive":true,"permissions":{"product:editor:desktop":true}}}'
-  exit 0
-fi
+# Resets grace period, intercepts print-user-status, delegates everything else
+PHASER_HOME="$HOME/.phasereditor2d"
+[ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
+
+for arg in "$@"; do
+  if [ "$arg" = "print-user-status" ]; then
+    echo '{"user":{"subscriptionActive":true,"permissions":{"product:editor:desktop":true}}}'
+    exit 0
+  fi
+done
 exec "$0.real" "$@"
 ```
 
 ## Commands
 
-| Command                  | Description                                        |
-| ------------------------ | -------------------------------------------------- |
-| `patch`                  | Patch `WindowManager.js`                           |
-| `restore`                | Restore original `WindowManager.js`                |
-| `install-proxy`          | Install proxy wrapper around `PhaserEditor` binary |
-| `uninstall-proxy`        | Remove proxy, restore original binary              |
-| `status`                 | Show patch, proxy and session status               |
-| `run`                    | Launch Phaser Editor                               |
-| `auto`                   | Complete setup: patch + proxy + run                |
-| `backup-session`         | Backup `user-session-v3.bin`                       |
-| `restore-session [file]` | Restore session from backup                        |
-| `refresh-session`        | Run Phaser.io login to get a new session           |
+| Command                  | Description                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `patch`                  | Patch `WindowManager.js`                                                             |
+| `restore`                | Restore original `WindowManager.js`                                                  |
+| `install-proxy`          | Install proxy wrapper around `PhaserEditor` binary                                   |
+| `install-proxy --force`  | Upgrade proxy v1 → v2 or reinstall                                                   |
+| `uninstall-proxy`        | Remove proxy, restore original binary                                                |
+| `reset-grace`            | Clear `server.log` / `auth-failure-v1.log` to reset the Go binary's 96h grace period |
+| `status`                 | Show patch, proxy and session status                                                 |
+| `run`                    | Launch Phaser Editor                                                                 |
+| `auto`                   | Complete setup: patch + proxy + reset-grace + run                                    |
+| `auto --no-run`          | Setup without launching                                                              |
+| `backup-session`         | Backup `user-session-v3.bin`                                                         |
+| `restore-session [file]` | Restore session from backup                                                          |
+| `refresh-session`        | Run Phaser.io login to get a new session                                             |
 
 ### Auto options
 
@@ -135,12 +145,21 @@ phaser-cracken auto --no-run    # Skip launching after setup
 
 ## Files Created by PhaserCracken
 
-| File                      | Purpose                            |
-| ------------------------- | ---------------------------------- |
-| `WindowManager.js.backup` | Original JS file backup            |
-| `PhaserEditor.real`       | Original Go binary (renamed)       |
-| `PhaserEditor.backup`     | Copy of original binary (optional) |
-| `PhaserEditor`            | Proxy script (replaces original)   |
+| File                                     | Purpose                          |
+| ---------------------------------------- | -------------------------------- |
+| `WindowManager.js.backup`                | Original JS file backup          |
+| `PhaserEditor.real`                      | Original Go binary (renamed)     |
+| `PhaserEditor.phaser-cracken.bin-backup` | Copy of original binary          |
+| `PhaserEditor`                           | Proxy script (replaces original) |
+
+### Log Files Reset
+
+The proxy truncates these files on every launch to keep the Go binary's grace period active:
+
+| File                                    | Purpose                                   |
+| --------------------------------------- | ----------------------------------------- |
+| `~/.phasereditor2d/server.log`          | Stores auth failure timestamp (Go binary) |
+| `~/.phasereditor2d/auth-failure-v1.log` | Auth failure marker (Electron)            |
 
 ## Uninstallation
 

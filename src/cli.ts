@@ -2,10 +2,13 @@ import chalk from "chalk";
 import { Command } from "commander";
 import * as emoji from "node-emoji";
 import { execSync } from "child_process";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs-extra";
 
 import { findPhaserEditor, PhaserEditorPaths } from "./finder";
 import { isPatched, patchWindowManager, restoreWindowManager } from "./patcher";
-import { isProxyInstalled, installProxy, uninstallProxy } from "./proxy";
+import { isProxyInstalled, needsUpgrade, installProxy, uninstallProxy } from "./proxy";
 import { backupSession, listBackups, restoreSession, sessionStatus } from "./session";
 
 const program = new Command();
@@ -29,6 +32,26 @@ function ensureFound(): PhaserEditorPaths {
     );
   }
   return paths;
+}
+
+function resetGracePeriod(): void {
+  const phaserHome = path.join(os.homedir(), ".phasereditor2d");
+  const serverLog = path.join(phaserHome, "server.log");
+  const authFailLog = path.join(phaserHome, "auth-failure-v1.log");
+
+  let truncated = false;
+  for (const f of [serverLog, authFailLog]) {
+    if (fs.existsSync(f)) {
+      fs.writeFileSync(f, "");
+      truncated = true;
+    }
+  }
+
+  if (truncated) {
+    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} Grace period reset — server.log and auth-failure log cleared.`);
+  } else {
+    console.log(`${chalk.green("==>")} ${emoji.get("information_source")} No logs to clear (${chalk.dim("server.log / auth-failure-v1.log")})`);
+  }
 }
 
 function doLaunch(paths: PhaserEditorPaths): void {
@@ -148,27 +171,44 @@ program
     console.log();
   });
 
+// ─── reset-grace ─────────────────────────────────────────────────────────────
+
+program
+  .command("reset-grace")
+  .description("Reset the Go binary grace period (clears server.log and auth-failure log)")
+  .action(() => {
+    resetGracePeriod();
+  });
+
 // ─── install-proxy ───────────────────────────────────────────────────────────
 
 program
   .command("install-proxy")
   .description("Install proxy wrapper around PhaserEditor binary")
-  .action(() => {
+  .option("-f, --force", "Reinstall proxy (upgrade v1 → v2 or fix corrupted install)")
+  .action((opts: { force?: boolean }) => {
     const { serverBinary } = ensureFound();
 
-    if (isProxyInstalled(serverBinary)) {
+    if (needsUpgrade(serverBinary) && !opts.force) {
+      console.log(`${chalk.yellow("==>")} ${emoji.get("warning")} Proxy v1 detected, upgrade to v2 recommended.`);
+      console.log(`${chalk.yellow("==>")} Run with ${chalk.bold("--force")} to upgrade.`);
+      return;
+    }
+
+    if (isProxyInstalled(serverBinary) && !opts.force) {
       console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Proxy already installed.`);
       return;
     }
 
     console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} Installing proxy wrapper at ${chalk.green(serverBinary)}`);
-    installProxy(serverBinary);
+    installProxy(serverBinary, opts.force);
 
     const realSuffix = process.platform === "win32" ? ".real.exe" : ".real";
     console.log(`${chalk.green("==>")} ${emoji.get("package")} Original binary renamed to ${chalk.green(serverBinary + realSuffix)}`);
     console.log(`${chalk.green("==>")} ${emoji.get("package")} Backup saved at ${chalk.green(serverBinary + ".phaser-cracken.bin-backup")}`);
     console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Proxy installed successfully!`);
 
+    resetGracePeriod();
     verifyProxy(serverBinary);
   });
 
@@ -278,7 +318,7 @@ program
 
 program
   .command("auto")
-  .description("Complete setup: patch + install-proxy + run")
+  .description("Complete setup: patch + install-proxy + reset-grace + run")
   .option("--no-run", "Skip launching the editor after setup")
   .action((opts: { run?: boolean }) => {
     const paths = ensureFound();
@@ -286,22 +326,32 @@ program
 
     // Step 1: Patch
     if (!isPatched(windowManagerJs)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/2] Patching WindowManager.js...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/3] Patching WindowManager.js...`);
       patchWindowManager(windowManagerJs);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Patch applied.`);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/2] WindowManager already patched.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/3] WindowManager already patched.`);
     }
 
     // Step 2: Proxy
     if (!isProxyInstalled(serverBinary)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/2] Installing proxy wrapper...`);
-      installProxy(serverBinary);
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/3] Installing proxy wrapper...`);
+      installProxy(serverBinary, true);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy installed.`);
       verifyProxy(serverBinary);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/2] Proxy already installed.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/3] Proxy already installed.`);
     }
+
+    if (needsUpgrade(serverBinary)) {
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/3] Upgrading proxy v1 → v2...`);
+      installProxy(serverBinary, true);
+      console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy upgraded.`);
+    }
+
+    // Step 3: Reset grace period
+    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [3/3] Resetting grace period...`);
+    resetGracePeriod();
 
     const patched = isPatched(windowManagerJs);
     const proxied = isProxyInstalled(serverBinary);
@@ -312,7 +362,7 @@ program
       console.log(`${chalk.dim("     No license check. No internet required. No expiry.")}`);
     }
 
-    // Step 3: Run (unless --no-run)
+    // Step 4: Run (unless --no-run)
     if (opts.run) {
       doLaunch(paths);
     }
@@ -324,11 +374,11 @@ export function runCli(argv: string[] = process.argv): void {
   program
     .name("phaser-cracken")
     .description("Phaser Editor 5 license bypass utility")
-    .version("1.1.0")
+    .version("1.2.0")
     .addHelpText("beforeAll", () => {
       return [
         "",
-        chalk.blue.bold("  \u26a1 PhaserCracken v1.1.0"),
+        chalk.blue.bold("  \u26a1 PhaserCracken v1.2.0"),
         chalk.dim("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"),
         "",
       ].join("\n");
