@@ -27,12 +27,11 @@
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 license bypass utility for non-commercial use.
 
-Four layers of protection are bypassed:
+Three layers of protection are bypassed:
 
 1. **Electron JS check** — patches `WindowManager.js` so `isEditorActivated()` always returns `true`.
-2. **Go binary check (user status)** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
-3. **Go binary check (server startup — grace period)** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches.
-4. **Go binary check (server startup — HTTP validation)** — the Go binary makes a direct HTTP request to `https://phaser.io/api/user/?has=product:editor:desktop`. If the server responds with "no permission", the binary blocks immediately (no grace mode). The proxy sets `HTTPS_PROXY` to an invalid address, forcing the HTTP request to fail and fall back to grace mode.
+2. **Go binary proxy** — installs a transparent proxy around `PhaserEditor` that intercepts `-tool print-user-status` and returns a fake subscription response. All other commands pass through to the real binary.
+3. **Grace period reset** — the Go binary stores the auth failure timestamp in `server.log`. When the 96-hour grace period expires, it refuses to start. The proxy truncates `server.log` and `auth-failure-v1.log` on every invocation, giving a fresh grace period each time the editor launches. A pre-built session file (`seed-session`) prevents the binary from skipping validation entirely when no session exists.
 
 ## ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣
 
@@ -94,9 +93,9 @@ npm run phaser-cracken --auto
 
 # Or step by step:
 npm run phaser-cracken --patch            # Bypass JS check
-npm run phaser-cracken --install-proxy    # Install proxy v3 (blocks phaser.io, resets grace, intercepts auth)
+npm run phaser-cracken --install-proxy    # Install proxy (resets grace, intercepts auth)
 npm run phaser-cracken --seed-session     # Create pre-built session file (required if missing)
-npm run phaser-cracken --reset-grace      # Reset grace period for Go binary startup check
+npm run phaser-cracken --reset-grace      # Reset grace period
 npm run phaser-cracken --run              # Launch the editor
 ```
 
@@ -125,11 +124,9 @@ Creates a proxy script (Node.js or bash) around the `PhaserEditor` binary:
 
 ```bash
 #!/bin/bash
-# Resets grace period, blocks phaser.io validation,
-# intercepts print-user-status, delegates everything else
+# Resets grace period, intercepts print-user-status, delegates everything else
 PHASER_HOME="$HOME/.phasereditor2d"
 [ -f "$PHASER_HOME/server.log" ] && : > "$PHASER_HOME/server.log"
-export HTTPS_PROXY="http://127.0.0.1:1"  # Force grace mode
 
 for arg in "$@"; do
   if [ "$arg" = "print-user-status" ]; then
@@ -147,10 +144,10 @@ exec "$0.real" "$@"
 | `patch`                  | Patch `WindowManager.js`                                                             |
 | `restore`                | Restore original `WindowManager.js`                                                  |
 | `install-proxy`          | Install proxy wrapper around `PhaserEditor` binary                                   |
-| `install-proxy --force`  | Reinstall proxy (upgrade to latest version)                                          |
-| `uninstall-proxy`        | Remove proxy, restore original binary                                                |
-| `seed-session`           | Create a pre-built session file (required when the Go binary skips validation)        |
-| `reset-grace`            | Clear `server.log` / `auth-failure-v1.log` to reset the Go binary's 96h grace period |
+| `install-proxy --force`  | Reinstall proxy (upgrade to latest version)                                    |
+| `uninstall-proxy`        | Remove proxy, restore original binary                                           |
+| `seed-session`           | Create a pre-built session file (required when no session exists)               |
+| `reset-grace`            | Clear `server.log` / `auth-failure-v1.log` to reset the 96h grace period        |
 | `status`                 | Show patch, proxy and session status                                                 |
 | `run`                    | Launch Phaser Editor                                                                 |
 | `auto`                   | Complete setup: patch + proxy + seed-session + reset-grace + run                     |
@@ -189,9 +186,9 @@ The proxy truncates these files on every launch to keep the Go binary's grace pe
 | `~/.phasereditor2d/server.log`          | Stores auth failure timestamp (Go binary) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Auth failure marker (Electron)            |
 
-### Layer 4: Session File
+### Layer 3: Grace Period & Session File
 
-Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error — even with `HTTPS_PROXY` blocking. The `seed-session` command writes a minimal session file so the binary attempts validation, fails (grace mode), and starts the server.
+Without a `user-session-v3.bin` file, the Go binary skips HTTP validation entirely and goes straight to the "premium users" error. The `seed-session` command writes a minimal session file so the binary attempts validation and falls back to grace mode.
 
 ```bash
 npm run phaser-cracken --seed-session

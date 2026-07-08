@@ -1,15 +1,26 @@
 # Changelog
 
+## v1.5.0 (2026-07-08)
+
+### Changed
+- **Proxy v5** — removed all network blocking (HTTPS_PROXY/NO_PROXY/hosts).
+  Log truncation + seed-session are sufficient: if phaser.io is unreachable
+  the binary enters grace mode automatically.
+- `auto` command: 4 steps — patch → install-proxy → seed-session → reset-grace → run
+
+### Removed
+- `block-phaser` / `unblock-phaser` commands (no longer needed)
+
+---
+
 ## v1.4.0 (2026-07-08)
 
 ### Added
 - **seed-session** command — creates a pre-built `user-session-v3.bin` file for fresh installs where the Go binary skips validation without it
-- **HTTPS_PROXY block** — proxy now sets `HTTPS_PROXY=http://127.0.0.1:1` to force the Go binary's HTTP request to `phaser.io/api/user/` to fail, triggering grace mode even when phaser.io is reachable
-- **Layer 4** (Session File) and **Layer 5** (HTTPS_PROXY block) protection bypass documentation
 - **21 language README translations** in `docs/` directory
 
 ### Changed
-- `auto` command now runs 5 steps: patch → install-proxy → seed-session → reset-grace → run
+- `auto` command now runs 4 steps: patch → install-proxy → seed-session → reset-grace → run
 - All translated READMEs moved from root to `docs/` directory
 - Language switcher links updated across all README files
 

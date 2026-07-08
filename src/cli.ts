@@ -403,11 +403,11 @@ export function runCli(argv: string[] = process.argv): void {
   program
     .name("phaser-cracken")
     .description("Phaser Editor 5 license bypass utility")
-    .version("1.4.0")
+    .version("1.5.0")
     .addHelpText("beforeAll", () => {
       return [
         "",
-        chalk.blue.bold("  \u26a1 PhaserCracken v1.4.0"),
+        chalk.blue.bold("  \u26a1 PhaserCracken v1.5.0"),
         chalk.dim("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"),
         "",
       ].join("\n");
