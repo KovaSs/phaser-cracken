@@ -180,35 +180,6 @@ program
     resetGracePeriod();
   });
 
-// ─── block-phaser ────────────────────────────────────────────────────────────
-
-program
-  .command("block-phaser")
-  .description("Add phaser.io to /etc/hosts pointing to 127.0.0.1 (requires sudo)")
-  .action(() => {
-    const entry = "127.0.0.1 phaser.io";
-    try {
-      execSync(`sudo sh -c 'echo "${entry}" >> /etc/hosts'`, { stdio: "pipe" });
-      console.log(`${chalk.green("==>")} ${emoji.get("white_check_mark")} phaser.io blocked (added to /etc/hosts).`);
-    } catch {
-      console.log(`${chalk.red("==>")} ${emoji.get("x")} Failed. Try manually: echo '${entry}' | sudo tee -a /etc/hosts`);
-    }
-  });
-
-// ─── unblock-phaser ──────────────────────────────────────────────────────────
-
-program
-  .command("unblock-phaser")
-  .description("Remove phaser.io entry from /etc/hosts (requires sudo)")
-  .action(() => {
-    try {
-      execSync(`sudo sed -i '' '/127\\.0\\.0\\.1 phaser\\.io/d' /etc/hosts`, { stdio: "pipe" });
-      console.log(`${chalk.green("==>")} ${emoji.get("white_check_mark")} phaser.io removed from /etc/hosts.`);
-    } catch {
-      console.log(`${chalk.red("==>")} ${emoji.get("x")} Failed to modify /etc/hosts.`);
-    }
-  });
-
 // ─── install-proxy ───────────────────────────────────────────────────────────
 
 program
@@ -366,7 +337,7 @@ program
 
 program
   .command("auto")
-  .description("Complete setup: patch + install-proxy + block-phaser (manual) + seed-session + reset-grace + run")
+  .description("Complete setup: patch + install-proxy + seed-session + reset-grace + run")
   .option("--no-run", "Skip launching the editor after setup")
   .action((opts: { run?: boolean }) => {
     const paths = ensureFound();
@@ -374,50 +345,41 @@ program
 
     // Step 1: Patch
     if (!isPatched(windowManagerJs)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/5] Patching WindowManager.js...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/4] Patching WindowManager.js...`);
       patchWindowManager(windowManagerJs);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Patch applied.`);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/5] WindowManager already patched.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/4] WindowManager already patched.`);
     }
 
     // Step 2: Proxy
     if (!isProxyInstalled(serverBinary)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/5] Installing proxy wrapper...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/4] Installing proxy wrapper...`);
       installProxy(serverBinary, true);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy installed.`);
       verifyProxy(serverBinary);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/5] Proxy already installed.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/4] Proxy already installed.`);
     }
 
     if (needsUpgrade(serverBinary)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/5] Upgrading proxy...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/4] Upgrading proxy...`);
       installProxy(serverBinary, true);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy upgraded.`);
     }
 
-    // Step 3: Block phaser.io in hosts (recommended)
-    const hasHostsEntry = execSync(`grep -c "phaser.io" /etc/hosts 2>/dev/null || echo 0`, { encoding: "utf-8" }).trim();
-    if (hasHostsEntry === "0") {
-      console.log(`${chalk.yellow("==>")} ${emoji.get("warning")} [3/5] phaser.io is NOT blocked.`);
-      console.log(`${chalk.yellow("     ")} Run: ${chalk.bold("sudo phaser-cracken block-phaser")} to prevent auth checks.`);
-    } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("white_check_mark")} [3/5] phaser.io blocked in /etc/hosts.`);
-    }
-
-    // Step 4: Seed session file (if missing)
+    // Step 3: Seed session file (if missing)
     const sessionFile = path.join(os.homedir(), ".phasereditor2d", "user-session-v3.bin");
     if (!fs.existsSync(sessionFile)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("package")} [4/5] Seeding session file...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("package")} [3/4] Seeding session file...`);
       seedSession();
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Session file created.`);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [4/5] Session file exists.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [3/4] Session file exists.`);
     }
 
     // Step 5: Reset grace period
-    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [5/5] Resetting grace period...`);
+    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [4/4] Resetting grace period...`);
     resetGracePeriod();
 
     const patched = isPatched(windowManagerJs);
