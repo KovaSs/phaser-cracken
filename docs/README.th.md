@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -25,7 +25,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[🇹🇭 ไทย](./README.th.md)
+[🇹🇭 ไทย](../README.th.md)
 
 ยูทิลิตีสำหรับบายพาสไลเซนส์ ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 สำหรับการใช้งานที่ไม่ใช่เชิงพาณิชย์
 
@@ -97,6 +97,7 @@ npm run phaser-cracken --auto
 # หรือทีละขั้นตอน:
 npm run phaser-cracken --patch            # บายพาสการตรวจสอบ JS
 npm run phaser-cracken --install-proxy    # บายพาสการตรวจสอบไบนารี Go (พร็อกซี + รีเซ็ตระยะเวลาผ่อนผัน)
+npm run phaser-cracken --seed-session     # สร้างไฟล์เซสชันที่สร้างไว้ล่วงหน้า (จำเป็นหากไม่มี)
 npm run phaser-cracken --reset-grace      # รีเซ็ตระยะเวลาผ่อนผันสำหรับการตรวจสอบการเริ่มต้นไบนารี Go
 npm run phaser-cracken --run              # เปิดแก้ไข
 ```
@@ -150,10 +151,11 @@ exec "$0.real" "$@"
 | `install-proxy`            | ติดตั้งตัวห่อพร็อกซีรอบไบนารี `PhaserEditor`                                  |
 | `install-proxy --force`    | อัปเกรดพร็อกซี v1 → v2 หรือติดตั้งใหม่                                        |
 | `uninstall-proxy`          | ลบพร็อกซี กู้คืนไบนารีต้นฉบับ                                                 |
+| `seed-session`             | สร้างไฟล์เซสชันที่สร้างไว้ล่วงหน้า (จำเป็นเมื่อไบนารี Go ข้ามการตรวจสอบ)      |
 | `reset-grace`              | ล้าง `server.log` / `auth-failure-v1.log` เพื่อรีเซ็ตระยะเวลาผ่อนผัน 96 ชม. ของไบนารี Go |
 | `status`                   | แสดงสถานะการแก้ไข พร็อกซี และเซสชัน                                          |
 | `run`                      | เปิด Phaser Editor                                                            |
-| `auto`                     | การตั้งค่าที่สมบูรณ์: แก้ไข + พร็อกซี + รีเซ็ตระยะเวลาผ่อนผัน + เปิดใช้งาน    |
+| `auto`                     | การตั้งค่าที่สมบูรณ์: แก้ไข + พร็อกซี + seed-session + รีเซ็ตระยะเวลาผ่อนผัน + เปิดใช้งาน    |
 | `auto --no-run`            | การตั้งค่าโดยไม่เปิดใช้งาน                                                     |
 | `backup-session`           | สำรองข้อมูล `user-session-v3.bin`                                             |
 | `restore-session [file]`   | กู้คืนเซสชันจากข้อมูลสำรอง                                                    |
@@ -188,6 +190,16 @@ phaser-cracken auto --no-run    # ข้ามการเปิดใช้ง�
 | ------------------------------------------- | -------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`              | เก็บประทับเวลาความล้มเหลวในการตรวจสอบสิทธิ์ (ไบนารี Go) |
 | `~/.phasereditor2d/auth-failure-v1.log`     | เครื่องหมายความล้มเหลวในการตรวจสอบสิทธิ์ (Electron)     |
+
+### ชั้นที่ 4: ไฟล์เซสชัน
+
+หากไม่มีไฟล์ `user-session-v3.bin` ไบนารี Go จะข้ามการตรวจสอบ HTTP ทั้งหมดและไปที่ข้อผิดพลาด "premium users" โดยตรง — แม้จะมีการบล็อก `HTTPS_PROXY` คำสั่ง `seed-session` จะเขียนไฟล์เซสชันขั้นต่ำเพื่อให้ไบนารีพยายามตรวจสอบ ล้มเหลว (โหมดผ่อนผัน) และเริ่มเซิร์ฟเวอร์
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+ขั้นตอนนี้ทำงานโดยอัตโนมัติเป็นส่วนหนึ่งของ `phaser-cracken auto`
 
 ## การถอนการติดตั้ง
 

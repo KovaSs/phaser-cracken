@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Veya adım adım:
 npm run phaser-cracken --patch            # JS denetimini atla
 npm run phaser-cracken --install-proxy    # Go ikili denetimini atla (proxy + ödeme sıfırlama)
+npm run phaser-cracken --seed-session     # Önceden oluşturulmuş oturum dosyası oluştur (eksikse gerekli)
 npm run phaser-cracken --reset-grace      # Go ikili başlatma denetimi için ödeme süresini sıfırla
 npm run phaser-cracken --run              # Düzenleyiciyi başlat
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | `PhaserEditor` ikili dosyası etrafına proxy kur                                                           |
 | `install-proxy --force`  | Proxy v1 → v2 yükselt veya yeniden kur                                                                    |
 | `uninstall-proxy`        | Proxy'yi kaldır, orijinal ikili dosyayı geri yükle                                                        |
+| `seed-session`           | Önceden oluşturulmuş oturum dosyası oluştur (Go ikilisi doğrulamayı atladığında gerekli)                    |
 | `reset-grace`            | Go ikilisinin 96s ödeme süresini sıfırlamak için `server.log` / `auth-failure-v1.log` dosyalarını temizle |
 | `status`                 | Yama, proxy ve oturum durumunu göster                                                                     |
 | `run`                    | Phaser Editor'ı başlat                                                                                    |
-| `auto`                   | Tam kurulum: yama + proxy + ödeme sıfırlama + başlatma                                                    |
+| `auto`                   | Tam kurulum: yama + proxy + seed-session + ödeme sıfırlama + başlatma                                                    |
 | `auto --no-run`          | Başlatmadan kurulum                                                                                       |
 | `backup-session`         | `user-session-v3.bin` dosyasını yedekle                                                                   |
 | `restore-session [file]` | Oturumu yedekten geri yükle                                                                               |
@@ -186,6 +188,16 @@ Proxy, Go ikilisinin ödeme süresini aktif tutmak için bu dosyaları her başl
 | --------------------------------------- | ------------------------------------------------------------ |
 | `~/.phasereditor2d/server.log`          | Başarısız kimlik doğrulama zaman damgasını saklar (Go ikili) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Başarısız kimlik doğrulama işareti (Electron)                |
+
+### Katman 4: Oturum Dosyası
+
+`user-session-v3.bin` dosyası olmadan, Go ikilisi HTTP doğrulamasını tamamen atlar ve `HTTPS_PROXY` engellemesine rağmen doğrudan "premium users" hatasına gider. `seed-session` komutu, ikilinin doğrulamayı denemesi, başarısız olması (ödeme modu) ve sunucuyu başlatması için minimum bir oturum dosyası yazar.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Bu adım, `phaser-cracken auto`'nun bir parçası olarak otomatik olarak çalışır.
 
 ## Kaldırma
 

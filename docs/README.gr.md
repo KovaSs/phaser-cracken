@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Ή βήμα προς βήμα:
 npm run phaser-cracken --patch            # Παράκαμψη ελέγχου JS
 npm run phaser-cracken --install-proxy    # Παράκαμψη ελέγχου Go δυαδικού (proxy + επαναφορά χάριτος)
+npm run phaser-cracken --seed-session     # Δημιουργία προκατασκευασμένου αρχείου συνόδου (απαιτείται εάν λείπει)
 npm run phaser-cracken --reset-grace      # Επαναφορά περιόδου χάριτος για έλεγχο εκκίνησης Go δυαδικού
 npm run phaser-cracken --run              # Εκκίνηση επεξεργαστή
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Εγκατάσταση proxy wrapper γύρω από το δυαδικό `PhaserEditor`                                              |
 | `install-proxy --force`  | Αναβάθμιση proxy v1 → v2 ή επανεγκατάσταση                                                                |
 | `uninstall-proxy`        | Αφαίρεση proxy, επαναφορά αρχικού δυαδικού                                                                |
+| `seed-session`           | Δημιουργία προκατασκευασμένου αρχείου συνόδου (απαιτείται όταν το Go δυαδικό παρακάμπτει την επικύρωση)    |
 | `reset-grace`            | Εκκαθάριση `server.log` / `auth-failure-v1.log` για επαναφορά της 96ωρης περιόδου χάριτος του Go δυαδικού |
 | `status`                 | Εμφάνιση κατάστασης διόρθωσης, proxy και συνόδου                                                          |
 | `run`                    | Εκκίνηση του Phaser Editor                                                                                |
-| `auto`                   | Πλήρης ρύθμιση: διόρθωση + proxy + επαναφορά χάριτος + εκκίνηση                                           |
+| `auto`                   | Πλήρης ρύθμιση: διόρθωση + proxy + seed-session + επαναφορά χάριτος + εκκίνηση                                           |
 | `auto --no-run`          | Ρύθμιση χωρίς εκκίνηση                                                                                    |
 | `backup-session`         | Δημιουργία αντιγράφου ασφαλείας του `user-session-v3.bin`                                                 |
 | `restore-session [file]` | Επαναφορά συνόδου από αντίγραφο ασφαλείας                                                                 |
@@ -186,6 +188,16 @@ phaser-cracken auto --no-run    # Παράλειψη εκκίνησης μετά
 | --------------------------------------- | ------------------------------------------------------------------ |
 | `~/.phasereditor2d/server.log`          | Αποθηκεύει χρονική σήμανση αποτυχίας αυθεντικοποίησης (Go δυαδικό) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Δείκτης αποτυχίας αυθεντικοποίησης (Electron)                      |
+
+### Επίπεδο 4: Αρχείο συνόδου
+
+Χωρίς αρχείο `user-session-v3.bin`, το Go δυαδικό παρακάμπτει εντελώς την επικύρωση HTTP και πηγαίνει κατευθείαν στο σφάλμα "premium users" — ακόμη και με τον αποκλεισμό `HTTPS_PROXY`. Η εντολή `seed-session` γράφει ένα ελάχιστο αρχείο συνόδου ώστε το δυαδικό να επιχειρήσει επικύρωση, να αποτύχει (λειτουργία χάριτος) και να ξεκινήσει τον διακομιστή.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Αυτό το βήμα εκτελείται αυτόματα ως μέρος του `phaser-cracken auto`.
 
 ## Απεγκατάσταση
 

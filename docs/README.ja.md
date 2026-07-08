@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -25,7 +25,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[🇯🇵 日本語](./README.ja.md)
+[🇯🇵 日本語](../README.ja.md)
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 ライセンス回避ユーティリティ（非商用利用のみ）。
 
@@ -97,6 +97,7 @@ npm run phaser-cracken --auto
 # またはステップバイステップ：
 npm run phaser-cracken --patch            # JS チェックをバイパス
 npm run phaser-cracken --install-proxy    # Go バイナリチェックをバイパス（プロキシ + 猶予期間リセット）
+npm run phaser-cracken --seed-session     # 事前構築済みセッションファイルを作成（不足している場合に必要）
 npm run phaser-cracken --reset-grace      # Go バイナリ起動チェックの猶予期間をリセット
 npm run phaser-cracken --run              # エディタを起動
 ```
@@ -150,10 +151,11 @@ exec "$0.real" "$@"
 | `install-proxy`             | `PhaserEditor` バイナリの周囲にプロキシラッパーをインストール       |
 | `install-proxy --force`     | プロキシ v1 → v2 にアップグレード、または再インストール             |
 | `uninstall-proxy`           | プロキシを削除、元のバイナリを復元                                  |
+| `seed-session`              | 事前構築済みセッションファイルを作成（Go バイナリが検証をスキップする場合に必要） |
 | `reset-grace`               | `server.log` / `auth-failure-v1.log` をクリアして Go バイナリの 96 時間の猶予期間をリセット |
 | `status`                    | パッチ、プロキシ、セッションの状態を表示                            |
 | `run`                       | Phaser Editor を起動                                                |
-| `auto`                      | 完全セットアップ：パッチ + プロキシ + 猶予期間リセット + 起動       |
+| `auto`                      | 完全セットアップ：パッチ + プロキシ + seed-session + 猶予期間リセット + 起動                |
 | `auto --no-run`             | 起動せずにセットアップ                                              |
 | `backup-session`            | `user-session-v3.bin` をバックアップ                                |
 | `restore-session [file]`    | バックアップからセッションを復元                                    |
@@ -188,6 +190,16 @@ phaser-cracken auto --no-run    # セットアップ後に起動をスキップ
 | --------------------------------------------- | ----------------------------------------------- |
 | `~/.phasereditor2d/server.log`                | 認証失敗のタイムスタンプを保存（Go バイナリ）   |
 | `~/.phasereditor2d/auth-failure-v1.log`       | 認証失敗マーカー（Electron）                   |
+
+### レイヤー 4: セッションファイル
+
+`user-session-v3.bin` ファイルがない場合、Go バイナリは HTTP 検証を完全にスキップし、`HTTPS_PROXY` ブロックがあっても直接「premium users」エラーに進みます。`seed-session` コマンドは最小限のセッションファイルを作成し、バイナリが検証を試み、失敗し（猶予モード）、サーバーを起動するようにします。
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+この手順は `phaser-cracken auto` の一部として自動的に実行されます。
 
 ## アンインストール
 

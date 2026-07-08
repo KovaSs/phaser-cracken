@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Oder Schritt für Schritt:
 npm run phaser-cracken --patch            # JS-Prüfung umgehen
 npm run phaser-cracken --install-proxy    # Go-Binärprüfung umgehen (Proxy + Gnadenfrist-Reset)
+npm run phaser-cracken --seed-session     # Vorgefertigte Sitzungsdatei erstellen (erforderlich, falls fehlend)
 npm run phaser-cracken --reset-grace      # Gnadenfrist für Go-Binärstart-Prüfung zurücksetzen
 npm run phaser-cracken --run              # Editor starten
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Proxy-Wrapper um `PhaserEditor`-Binärdatei installieren                            |
 | `install-proxy --force`  | Proxy v1 → v2 aktualisieren oder neu installieren                                  |
 | `uninstall-proxy`        | Proxy entfernen, originale Binärdatei wiederherstellen                             |
+| `seed-session`           | Vorgefertigte Sitzungsdatei erstellen (erforderlich, wenn die Go-Binärdatei die Validierung überspringt) |
 | `reset-grace`            | `server.log` / `auth-failure-v1.log` leeren, um die 96h Gnadenfrist zurückzusetzen |
 | `status`                 | Patch-, Proxy- und Sitzungsstatus anzeigen                                         |
 | `run`                    | Phaser Editor starten                                                              |
-| `auto`                   | Komplette Einrichtung: Patch + Proxy + Gnadenfrist-Reset + Start                   |
+| `auto`                   | Komplette Einrichtung: Patch + Proxy + seed-session + Gnadenfrist-Reset + Start                       |
 | `auto --no-run`          | Einrichtung ohne Start                                                             |
 | `backup-session`         | `user-session-v3.bin` sichern                                                      |
 | `restore-session [file]` | Sitzung aus Backup wiederherstellen                                                |
@@ -186,6 +188,16 @@ Der Proxy kürzt diese Dateien bei jedem Start, um die Gnadenfrist der Go-Binär
 | --------------------------------------- | -------------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Speichert Authentifizierungsfehler-Zeitstempel (Go-Binärdatei) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Authentifizierungsfehler-Markierung (Electron)                 |
+
+### Ebene 4: Sitzungsdatei
+
+Ohne eine `user-session-v3.bin`-Datei überspringt die Go-Binärdatei die HTTP-Validierung vollständig und geht direkt zum Fehler "premium users" — selbst wenn `HTTPS_PROXY` blockiert. Der Befehl `seed-session` schreibt eine minimale Sitzungsdatei, sodass die Binärdatei eine Validierung versucht, fehlschlägt (Gnadenmodus) und den Server startet.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Dieser Schritt wird automatisch als Teil von `phaser-cracken auto` ausgeführt.
 
 ## Deinstallation
 

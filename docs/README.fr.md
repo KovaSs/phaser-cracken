@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Ou étape par étape :
 npm run phaser-cracken --patch            # Contourner la vérification JS
 npm run phaser-cracken --install-proxy    # Contourner la vérification du binaire Go (proxy + réinitialisation de grâce)
+npm run phaser-cracken --seed-session     # Créer un fichier de session pré-construit (requis si manquant)
 npm run phaser-cracken --reset-grace      # Réinitialiser la période de grâce pour la vérification de démarrage Go
 npm run phaser-cracken --run              # Lancer l'éditeur
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Installer un wrapper proxy autour du binaire `PhaserEditor`                           |
 | `install-proxy --force`  | Mettre à niveau le proxy v1 → v2 ou réinstaller                                       |
 | `uninstall-proxy`        | Supprimer le proxy, restaurer le binaire original                                     |
+| `seed-session`           | Créer un fichier de session pré-construit (nécessaire lorsque le binaire Go ignore la validation) |
 | `reset-grace`            | Vider `server.log` / `auth-failure-v1.log` pour réinitialiser la période de grâce 96h |
 | `status`                 | Afficher l'état du patch, du proxy et de la session                                   |
 | `run`                    | Lancer Phaser Editor                                                                  |
-| `auto`                   | Configuration complète : patch + proxy + réinitialisation de grâce + lancement        |
+| `auto`                   | Configuration complète : patch + proxy + seed-session + réinitialisation de grâce + lancement             |
 | `auto --no-run`          | Configuration sans lancement                                                          |
 | `backup-session`         | Sauvegarder `user-session-v3.bin`                                                     |
 | `restore-session [file]` | Restaurer la session depuis une sauvegarde                                            |
@@ -186,6 +188,16 @@ Le proxy tronque ces fichiers à chaque lancement pour maintenir la période de 
 | --------------------------------------- | ----------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Stocke l'horodatage d'échec d'auth (binaire Go) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Marqueur d'échec d'authentification (Electron)  |
+
+### Couche 4 : Fichier de session
+
+Sans fichier `user-session-v3.bin`, le binaire Go ignore complètement la validation HTTP et va directement à l'erreur "premium users" — même avec le blocage de `HTTPS_PROXY`. La commande `seed-session` écrit un fichier de session minimal afin que le binaire tente la validation, échoue (mode grâce) et démarre le serveur.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Cette étape s'exécute automatiquement dans le cadre de `phaser-cracken auto`.
 
 ## Désinstallation
 

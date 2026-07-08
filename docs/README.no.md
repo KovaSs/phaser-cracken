@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Eller steg for steg:
 npm run phaser-cracken --patch            # Omgå JS-sjekk
 npm run phaser-cracken --install-proxy    # Omgå Go binær sjekk (proxy + nullstill nåde)
+npm run phaser-cracken --seed-session     # Opprett forhåndsbygd sesjonsfil (påkrevd hvis den mangler)
 npm run phaser-cracken --reset-grace      # Nullstill nådeperiode for Go binær oppstartssjekk
 npm run phaser-cracken --run              # Start editoren
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Installer proxy rundt `PhaserEditor` binærfilen                                       |
 | `install-proxy --force`  | Oppgrader proxy v1 → v2 eller reinstaller                                             |
 | `uninstall-proxy`        | Fjern proxy, gjenopprett original binærfil                                            |
+| `seed-session`           | Opprett forhåndsbygd sesjonsfil (påkrevd når Go-binæren hopper over validering)       |
 | `reset-grace`            | Tøm `server.log` / `auth-failure-v1.log` for å nullstille Go binærens 96t nådeperiode |
 | `status`                 | Vis status for patch, proxy og sesjon                                                 |
 | `run`                    | Start Phaser Editor                                                                   |
-| `auto`                   | Fullt oppsett: patch + proxy + nullstill nåde + start                                 |
+| `auto`                   | Fullt oppsett: patch + proxy + seed-session + nullstill nåde + start                                     |
 | `auto --no-run`          | Oppsett uten oppstart                                                                 |
 | `backup-session`         | Sikkerhetskopier `user-session-v3.bin`                                                |
 | `restore-session [file]` | Gjenopprett sesjon fra sikkerhetskopi                                                 |
@@ -186,6 +188,16 @@ Proxyen tømmer disse filene ved hver oppstart for å holde Go-binærens nådepe
 | --------------------------------------- | --------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Lagrer tidsstempel for mislykket autentisering (Go binær) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Markør for mislykket autentisering (Electron)             |
+
+### Lag 4: Sesjonsfil
+
+Uten en `user-session-v3.bin`-fil hopper Go-binæren over HTTP-validering helt og går rett til "premium users"-feilen — selv med `HTTPS_PROXY`-blokkering. Kommandoen `seed-session` skriver en minimal sesjonsfil slik at binæren forsøker validering, mislykkes (nådemodus) og starter serveren.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Dette trinnet kjøres automatisk som en del av `phaser-cracken auto`.
 
 ## Avinstallering
 

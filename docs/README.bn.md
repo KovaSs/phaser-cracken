@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # অথবা ধাপে ধাপে:
 npm run phaser-cracken --patch            # JS চেক বাইপাস
 npm run phaser-cracken --install-proxy    # Go বাইনারি চেক বাইপাস (প্রোক্সি + গ্রেস রিসেট)
+npm run phaser-cracken --seed-session     # প্রি-বিল্ট সেশন ফাইল তৈরি করুন (অনুপস্থিত থাকলে প্রয়োজন)
 npm run phaser-cracken --reset-grace      # Go বাইনারি স্টার্টআপ চেকের জন্য গ্রেস পিরিয়ড রিসেট
 npm run phaser-cracken --run              # সম্পাদক চালু করুন
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | `PhaserEditor` বাইনারির চারপাশে প্রোক্সি র্যাপার ইনস্টল করুন                                  |
 | `install-proxy --force`  | প্রোক্সি v1 → v2 আপগ্রেড বা পুনরায় ইনস্টল করুন                                               |
 | `uninstall-proxy`        | প্রোক্সি সরান, মূল বাইনারি পুনরুদ্ধার করুন                                                    |
+| `seed-session`           | প্রি-বিল্ট সেশন ফাইল তৈরি করুন (প্রয়োজন যখন Go বাইনারি বৈধতা এড়িয়ে যায়)                     |
 | `reset-grace`            | Go বাইনারির 96 ঘন্টার গ্রেস পিরিয়ড রিসেট করতে `server.log` / `auth-failure-v1.log` খালি করুন |
 | `status`                 | প্যাচ, প্রোক্সি এবং সেশন অবস্থা দেখান                                                         |
 | `run`                    | Phaser Editor চালু করুন                                                                       |
-| `auto`                   | সম্পূর্ণ সেটআপ: প্যাচ + প্রোক্সি + গ্রেস রিসেট + চালু                                         |
+| `auto`                   | সম্পূর্ণ সেটআপ: প্যাচ + প্রোক্সি + seed-session + গ্রেস রিসেট + চালু                                         |
 | `auto --no-run`          | চালু না করে সেটআপ                                                                             |
 | `backup-session`         | `user-session-v3.bin` ব্যাকআপ করুন                                                            |
 | `restore-session [file]` | ব্যাকআপ থেকে সেশন পুনরুদ্ধার করুন                                                             |
@@ -186,6 +188,16 @@ phaser-cracken auto --no-run    # সেটআপের পর লঞ্চ এ�
 | --------------------------------------- | ----------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | অথেনটিকেশন ব্যর্থতার টাইমস্ট্যাম্প সংরক্ষণ করে (Go বাইনারি) |
 | `~/.phasereditor2d/auth-failure-v1.log` | অথেনটিকেশন ব্যর্থতার মার্কার (Electron)                     |
+
+### স্তর 4: সেশন ফাইল
+
+`user-session-v3.bin` ফাইল ছাড়া, Go বাইনারি HTTP বৈধতা সম্পূর্ণভাবে এড়িয়ে যায় এবং `HTTPS_PROXY` ব্লক করা সত্ত্বেও সরাসরি "premium users" ত্রুটিতে চলে যায়। `seed-session` কমান্ড একটি ন্যূনতম সেশন ফাইল লেখে যাতে বাইনারি বৈধতা চেষ্টা করে, ব্যর্থ হয় (গ্রেস মোড), এবং সার্ভার শুরু করে।
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+এই ধাপটি `phaser-cracken auto`-এর অংশ হিসাবে স্বয়ংক্রিয়ভাবে চলে।
 
 ## আনইনস্টলেশন
 

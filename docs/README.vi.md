@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Hoặc từng bước:
 npm run phaser-cracken --patch            # Vượt qua kiểm tra JS
 npm run phaser-cracken --install-proxy    # Vượt qua kiểm tra nhị phân Go (proxy + đặt lại thời gian gia hạn)
+npm run phaser-cracken --seed-session     # Tạo tệp phiên làm việc được xây dựng sẵn (cần thiết nếu thiếu)
 npm run phaser-cracken --reset-grace      # Đặt lại thời gian gia hạn cho kiểm tra khởi động nhị phân Go
 npm run phaser-cracken --run              # Khởi chạy trình chỉnh sửa
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Cài đặt proxy quanh tệp nhị phân `PhaserEditor`                                  |
 | `install-proxy --force`  | Nâng cấp proxy v1 → v2 hoặc cài đặt lại                                          |
 | `uninstall-proxy`        | Gỡ bỏ proxy, khôi phục tệp nhị phân gốc                                          |
+| `seed-session`           | Tạo tệp phiên làm việc được xây dựng sẵn (cần thiết khi tệp nhị phân Go bỏ qua xác thực) |
 | `reset-grace`            | Xóa `server.log` / `auth-failure-v1.log` để đặt lại thời gian gia hạn 96h của Go |
 | `status`                 | Hiển thị trạng thái vá, proxy và phiên làm việc                                  |
 | `run`                    | Khởi chạy Phaser Editor                                                          |
-| `auto`                   | Thiết lập hoàn chỉnh: vá + proxy + đặt lại thời gian gia hạn + khởi chạy         |
+| `auto`                   | Thiết lập hoàn chỉnh: vá + proxy + seed-session + đặt lại thời gian gia hạn + khởi chạy         |
 | `auto --no-run`          | Thiết lập mà không khởi chạy                                                     |
 | `backup-session`         | Sao lưu `user-session-v3.bin`                                                    |
 | `restore-session [file]` | Khôi phục phiên từ bản sao lưu                                                   |
@@ -186,6 +188,16 @@ Proxy cắt ngắn các tệp này mỗi lần khởi chạy để giữ cho th�
 | --------------------------------------- | ----------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Lưu dấu thời gian xác thực thất bại (tệp nhị phân Go) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Dấu hiệu xác thực thất bại (Electron)                 |
+
+### Lớp 4: Tệp phiên làm việc
+
+Nếu không có tệp `user-session-v3.bin`, tệp nhị phân Go sẽ bỏ qua hoàn toàn xác thực HTTP và đi thẳng đến lỗi "premium users" — ngay cả khi `HTTPS_PROXY` đang chặn. Lệnh `seed-session` ghi một tệp phiên làm việc tối thiểu để tệp nhị phân thử xác thực, thất bại (chế độ gia hạn) và khởi động máy chủ.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Bước này tự động chạy như một phần của `phaser-cracken auto`.
 
 ## Gỡ cài đặt
 

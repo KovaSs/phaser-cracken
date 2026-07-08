@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Ili korak po korak:
 npm run phaser-cracken --patch            # Zaobiđi JS provjeru
 npm run phaser-cracken --install-proxy    # Zaobiđi Go binary provjeru (proxy + reset grejsa)
+npm run phaser-cracken --seed-session     # Kreiraj unaprijed izgrađenu sesijsku datoteku (potrebno ako nedostaje)
 npm run phaser-cracken --reset-grace      # Resetuj grejs period za Go binary provjeru pokretanja
 npm run phaser-cracken --run              # Pokreni editor
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Instaliraj proxy oko `PhaserEditor` binarne datoteke                                 |
 | `install-proxy --force`  | Nadogradi proxy v1 → v2 ili reinstaliraj                                             |
 | `uninstall-proxy`        | Ukloni proxy, vrati originalnu binarnu datoteku                                      |
+| `seed-session`           | Kreiraj unaprijed izgrađenu sesijsku datoteku (potrebno kada Go binary preskoči validaciju) |
 | `reset-grace`            | Očisti `server.log` / `auth-failure-v1.log` da resetuješ 96h grejs period Go binarne |
 | `status`                 | Prikaži status patcha, proxy i sesije                                                |
 | `run`                    | Pokreni Phaser Editor                                                                |
-| `auto`                   | Potpuno podešavanje: patch + proxy + reset grejsa + pokretanje                       |
+| `auto`                   | Potpuno podešavanje: patch + proxy + seed-session + reset grejsa + pokretanje                           |
 | `auto --no-run`          | Podešavanje bez pokretanja                                                           |
 | `backup-session`         | Napravi sigurnosnu kopiju `user-session-v3.bin`                                      |
 | `restore-session [file]` | Vrati sesiju iz sigurnosne kopije                                                    |
@@ -186,6 +188,16 @@ Proxy skraćuje ove datoteke pri svakom pokretanju kako bi grejs period Go binar
 | --------------------------------------- | ----------------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Pohranjuje vremensku oznaku neuspjele autentifikacije (Go binary) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Oznaka neuspjele autentifikacije (Electron)                       |
+
+### Sloj 4: Sesijska datoteka
+
+Bez `user-session-v3.bin` datoteke, Go binary potpuno preskače HTTP validaciju i ide direktno na grešku "premium users" — čak i sa blokiranjem `HTTPS_PROXY`. Komanda `seed-session` upisuje minimalnu sesijsku datoteku tako da binary pokuša validaciju, ne uspije (grejs mod) i pokrene server.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Ovaj korak se pokreće automatski kao dio `phaser-cracken auto`.
 
 ## Deinstalacija
 

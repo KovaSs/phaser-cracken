@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -25,7 +25,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[🇨🇳 中文](./README.zh.md)
+[🇨🇳 中文](../README.zh.md)
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 许可证绕过工具，仅供非商业用途使用。
 
@@ -97,6 +97,7 @@ npm run phaser-cracken --auto
 # 或逐步操作：
 npm run phaser-cracken --patch            # 绕过 JS 检查
 npm run phaser-cracken --install-proxy    # 绕过 Go 二进制文件检查（代理 + 宽限期重置）
+npm run phaser-cracken --seed-session     # 创建预构建的会话文件（缺少时需要）
 npm run phaser-cracken --reset-grace      # 重置 Go 二进制文件启动检查的宽限期
 npm run phaser-cracken --run              # 启动编辑器
 ```
@@ -150,10 +151,11 @@ exec "$0.real" "$@"
 | `install-proxy`           | 在 `PhaserEditor` 二进制文件周围安装代理包装                       |
 | `install-proxy --force`   | 升级代理 v1 → v2 或重新安装                                        |
 | `uninstall-proxy`         | 移除代理，恢复原始二进制文件                                       |
+| `seed-session`            | 创建预构建的会话文件（当 Go 二进制文件跳过验证时需要）             |
 | `reset-grace`             | 清除 `server.log` / `auth-failure-v1.log` 以重置 Go 二进制文件的 96 小时宽限期 |
 | `status`                  | 显示补丁、代理和会话状态                                           |
 | `run`                     | 启动 Phaser Editor                                                 |
-| `auto`                    | 完整设置：补丁 + 代理 + 重置宽限期 + 启动                          |
+| `auto`                    | 完整设置：补丁 + 代理 + seed-session + 重置宽限期 + 启动                 |
 | `auto --no-run`           | 设置但不启动                                                       |
 | `backup-session`          | 备份 `user-session-v3.bin`                                         |
 | `restore-session [file]`  | 从备份恢复会话                                                     |
@@ -188,6 +190,16 @@ phaser-cracken auto --no-run    # 设置后跳过启动
 | ------------------------------------------- | -------------------------------------------- |
 | `~/.phasereditor2d/server.log`              | 存储认证失败时间戳（Go 二进制文件）          |
 | `~/.phasereditor2d/auth-failure-v1.log`     | 认证失败标记（Electron）                     |
+
+### 第 4 层：会话文件
+
+如果没有 `user-session-v3.bin` 文件，Go 二进制文件将完全跳过 HTTP 验证，直接进入"高级用户"错误 — 即使 `HTTPS_PROXY` 正在阻止。`seed-session` 命令会写入一个最小的会话文件，使二进制文件尝试验证、失败（进入宽限模式）并启动服务器。
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+此步骤作为 `phaser-cracken auto` 的一部分自动运行。
 
 ## 卸载
 

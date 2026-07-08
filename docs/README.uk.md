@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -95,6 +95,7 @@ npm run phaser-cracken --auto
 # Або покроково:
 npm run phaser-cracken --patch            # Обхід JS перевірки
 npm run phaser-cracken --install-proxy    # Обхід Go-бінарника (проксі + скидання пільгового періоду)
+npm run phaser-cracken --seed-session     # Створити попередньо створений файл сесії (потрібно, якщо відсутній)
 npm run phaser-cracken --reset-grace      # Скидання пільгового періоду для перевірки запуску Go-бінарника
 npm run phaser-cracken --run              # Запуск редактора
 ```
@@ -148,10 +149,11 @@ exec "$0.real" "$@"
 | `install-proxy`          | Встановлює проксі-обгортку навколо бінарника `PhaserEditor`                                           |
 | `install-proxy --force`  | Оновлення проксі v1 → v2 або перевстановлення                                                         |
 | `uninstall-proxy`        | Видаляє проксі, відновлює оригінальний бінарник                                                       |
+| `seed-session`           | Створює попередньо створений файл сесії (потрібно, коли Go-бінарник пропускає перевірку)                |
 | `reset-grace`            | Очищує `server.log` / `auth-failure-v1.log` для скидання 96-годинного пільгового періоду Go-бінарника |
 | `status`                 | Показує стан патча, проксі та сесії                                                                   |
 | `run`                    | Запускає Phaser Editor                                                                                |
-| `auto`                   | Повне налаштування: патч + проксі + скидання пільгового періоду + запуск                              |
+| `auto`                   | Повне налаштування: патч + проксі + seed-session + скидання пільгового періоду + запуск                                  |
 | `auto --no-run`          | Налаштування без запуску                                                                              |
 | `backup-session`         | Резервне копіювання `user-session-v3.bin`                                                             |
 | `restore-session [file]` | Відновлення сесії з резервної копії                                                                   |
@@ -186,6 +188,16 @@ phaser-cracken auto --no-run    # Пропустити запуск після �
 | --------------------------------------- | ---------------------------------------------------------- |
 | `~/.phasereditor2d/server.log`          | Зберігає часову мітку помилки автентифікації (Go-бінарник) |
 | `~/.phasereditor2d/auth-failure-v1.log` | Маркер помилки автентифікації (Electron)                   |
+
+### Рівень 4: Файл сесії
+
+Без файлу `user-session-v3.bin` Go-бінарник повністю пропускає HTTP-перевірку і одразу переходить до помилки "premium users" — навіть із блокуванням `HTTPS_PROXY`. Команда `seed-session` створює мінімальний файл сесії, щоб бінарник спробував виконати перевірку, не пройшов її (пільговий режим) і запустив сервер.
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+Цей крок виконується автоматично як частина `phaser-cracken auto`.
 
 ## Видалення
 

@@ -1,7 +1,7 @@
 # ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 ℂ𝕣𝕒𝕔𝕜𝕖𝕟
 
 <p align="center">
-  <a href="README.md">English</a> |
+  <a href="../README.md">English</a> |
   <a href="README.zh.md">简体中文</a> |
   <a href="README.zht.md">繁體中文</a> |
   <a href="README.ko.md">한국어</a> |
@@ -25,7 +25,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[🇨🇳 繁體中文](./README.zht.md)
+[🇨🇳 繁體中文](../README.zht.md)
 
 ℙ𝕙𝕒𝕤𝕖𝕣 𝔼𝕕𝕚𝕥𝕠𝕣 5 許可證繞過工具，僅供非商業用途使用。
 
@@ -97,6 +97,7 @@ npm run phaser-cracken --auto
 # 或逐步操作：
 npm run phaser-cracken --patch            # 繞過 JS 檢查
 npm run phaser-cracken --install-proxy    # 繞過 Go 二進位檔案檢查（代理 + 寬限期重置）
+npm run phaser-cracken --seed-session     # 建立預先建立的工作階段檔案（缺少時需要）
 npm run phaser-cracken --reset-grace      # 重置 Go 二進位檔案啟動檢查的寬限期
 npm run phaser-cracken --run              # 啟動編輯器
 ```
@@ -150,10 +151,11 @@ exec "$0.real" "$@"
 | `install-proxy`           | 在 `PhaserEditor` 二進位檔案周圍安裝代理包裝                        |
 | `install-proxy --force`   | 升級代理 v1 → v2 或重新安裝                                         |
 | `uninstall-proxy`         | 移除代理，恢復原始二進位檔案                                        |
+| `seed-session`            | 建立預先建立的工作階段檔案（當 Go 二進位檔案跳過驗證時需要）        |
 | `reset-grace`             | 清除 `server.log` / `auth-failure-v1.log` 以重置 Go 二進位檔案的 96 小時寬限期 |
 | `status`                  | 顯示補丁、代理和工作階段狀態                                        |
 | `run`                     | 啟動 Phaser Editor                                                  |
-| `auto`                    | 完整設定：補丁 + 代理 + 重置寬限期 + 啟動                           |
+| `auto`                    | 完整設定：補丁 + 代理 + seed-session + 重置寬限期 + 啟動                  |
 | `auto --no-run`           | 設定但不啟動                                                        |
 | `backup-session`          | 備份 `user-session-v3.bin`                                          |
 | `restore-session [file]`  | 從備份還原工作階段                                                  |
@@ -188,6 +190,16 @@ phaser-cracken auto --no-run    # 設定後跳過啟動
 | ------------------------------------------- | --------------------------------------------- |
 | `~/.phasereditor2d/server.log`              | 儲存認證失敗時間戳（Go 二進位檔案）           |
 | `~/.phasereditor2d/auth-failure-v1.log`     | 認證失敗標記（Electron）                      |
+
+### 第 4 層：工作階段檔案
+
+如果沒有 `user-session-v3.bin` 檔案，Go 二進位檔案將完全跳過 HTTP 驗證，直接進入"高級使用者"錯誤 — 即使 `HTTPS_PROXY` 正在封鎖。`seed-session` 指令會寫入一個最小的工作階段檔案，使二進位檔案嘗試驗證、失敗（進入寬限模式）並啟動伺服器。
+
+```bash
+npm run phaser-cracken --seed-session
+```
+
+此步驟作為 `phaser-cracken auto` 的一部分自動執行。
 
 ## 解除安裝
 

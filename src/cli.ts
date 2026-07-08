@@ -9,7 +9,7 @@ import * as fs from "fs-extra";
 import { findPhaserEditor, PhaserEditorPaths } from "./finder";
 import { isPatched, patchWindowManager, restoreWindowManager } from "./patcher";
 import { isProxyInstalled, needsUpgrade, installProxy, uninstallProxy } from "./proxy";
-import { backupSession, listBackups, restoreSession, sessionStatus } from "./session";
+import { backupSession, listBackups, restoreSession, seedSession, sessionStatus } from "./session";
 
 const program = new Command();
 
@@ -255,6 +255,25 @@ program
     }
   });
 
+// ─── seed-session ────────────────────────────────────────────────────────────
+
+program
+  .command("seed-session")
+  .description("Create a pre-built session file (required when the Go binary skips validation without it)")
+  .action(() => {
+    const phaserHome = path.join(os.homedir(), ".phasereditor2d");
+    const sessionFile = path.join(phaserHome, "user-session-v3.bin");
+
+    if (fs.existsSync(sessionFile)) {
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Session file already exists.`);
+      return;
+    }
+
+    console.log(`${chalk.green("==>")} ${emoji.get("package")} Seeding session file...`);
+    seedSession();
+    console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} Session file created.`);
+  });
+
 // ─── backup-session ──────────────────────────────────────────────────────────
 
 program
@@ -318,7 +337,7 @@ program
 
 program
   .command("auto")
-  .description("Complete setup: patch + install-proxy + reset-grace + run")
+  .description("Complete setup: patch + install-proxy + seed-session + reset-grace + run")
   .option("--no-run", "Skip launching the editor after setup")
   .action((opts: { run?: boolean }) => {
     const paths = ensureFound();
@@ -326,31 +345,41 @@ program
 
     // Step 1: Patch
     if (!isPatched(windowManagerJs)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/3] Patching WindowManager.js...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("hammer")} [1/4] Patching WindowManager.js...`);
       patchWindowManager(windowManagerJs);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Patch applied.`);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/3] WindowManager already patched.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [1/4] WindowManager already patched.`);
     }
 
     // Step 2: Proxy
     if (!isProxyInstalled(serverBinary)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/3] Installing proxy wrapper...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/4] Installing proxy wrapper...`);
       installProxy(serverBinary, true);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy installed.`);
       verifyProxy(serverBinary);
     } else {
-      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/3] Proxy already installed.`);
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [2/4] Proxy already installed.`);
     }
 
     if (needsUpgrade(serverBinary)) {
-      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/3] Upgrading proxy v1 → v2...`);
+      console.log(`${chalk.green("==>")} ${emoji.get("electric_plug")} [2/4] Upgrading proxy...`);
       installProxy(serverBinary, true);
       console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Proxy upgraded.`);
     }
 
-    // Step 3: Reset grace period
-    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [3/3] Resetting grace period...`);
+    // Step 3: Seed session file (if missing)
+    const sessionFile = path.join(os.homedir(), ".phasereditor2d", "user-session-v3.bin");
+    if (!fs.existsSync(sessionFile)) {
+      console.log(`${chalk.green("==>")} ${emoji.get("package")} [3/4] Seeding session file...`);
+      seedSession();
+      console.log(`${chalk.green("==>")}     ${emoji.get("ok_hand")} Session file created.`);
+    } else {
+      console.log(`${chalk.green("==>")} ${emoji.get("ok_hand")} [3/4] Session file exists.`);
+    }
+
+    // Step 4: Reset grace period
+    console.log(`${chalk.green("==>")} ${emoji.get("arrows_counterclockwise")} [4/4] Resetting grace period...`);
     resetGracePeriod();
 
     const patched = isPatched(windowManagerJs);
@@ -362,7 +391,7 @@ program
       console.log(`${chalk.dim("     No license check. No internet required. No expiry.")}`);
     }
 
-    // Step 4: Run (unless --no-run)
+    // Step 5: Run (unless --no-run)
     if (opts.run) {
       doLaunch(paths);
     }
@@ -374,11 +403,11 @@ export function runCli(argv: string[] = process.argv): void {
   program
     .name("phaser-cracken")
     .description("Phaser Editor 5 license bypass utility")
-    .version("1.3.0")
+    .version("1.4.0")
     .addHelpText("beforeAll", () => {
       return [
         "",
-        chalk.blue.bold("  \u26a1 PhaserCracken v1.3.0"),
+        chalk.blue.bold("  \u26a1 PhaserCracken v1.4.0"),
         chalk.dim("  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"),
         "",
       ].join("\n");
